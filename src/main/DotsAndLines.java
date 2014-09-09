@@ -2,6 +2,7 @@ package main;
 
 import java.awt.*;
 import java.awt.event.*;
+
 import javax.swing.*;
 
 // change turns and scoring...........................................
@@ -11,16 +12,16 @@ public class DotsAndLines extends JFrame implements MouseListener{
 	public static final int Y_AXIS = 1;
 	public static final int X_AXIS = 0;
 	
-	public static final int space = 64;
-	public static final int thickness = 16;
-	public static final int boardSize = 5;
-	
+	public static int space;
+	public static int thickness;
+	public static int boardSize;
+	public static int players;
 	public static final Color[] colors = new Color[] {Color.white, Color.red, Color.blue, Color.green, Color.orange, Color.pink, Color.cyan};
-	public static final int players = 2;
+	
 	// instance variables
 	int player = 1;
 	int movesLeft = 1;
-	public int[] score = new int[players];
+	public int[] score;
 	public JLabel[] scoreLabels;
 	
 	public int[][] boardx = new int[boardSize][boardSize +2];
@@ -33,8 +34,10 @@ public class DotsAndLines extends JFrame implements MouseListener{
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
 		DrawPanel displayPanel = new DrawPanel(this);
+		score = new int[players];
 		scoreLabels = new JLabel[players];
 		for (int i = 0; i < scoreLabels.length; i++) {
+			
 			scoreLabels[i] = new JLabel(Integer.toString(score[i]));
 			scoreLabels[i].setForeground(colors[i+1]);
 			displayPanel.add(scoreLabels[i]);
@@ -153,20 +156,34 @@ public class DotsAndLines extends JFrame implements MouseListener{
 	public void mouseReleased(MouseEvent arg0) {}
 	
 	public static void main(String[] args) {
+		if (args.length == 3) {
+			boardSize = Integer.parseInt(args[0]);
+			thickness = Integer.parseInt(args[1]);
+			players = Integer.parseInt(args[2]);
+		} else {
+			boardSize = 10;
+			thickness = 16;
+			players = 2;
+		}
+		space = thickness * 4;
+		
 		DotsAndLines frame = new DotsAndLines();
 	}
 }
 
 class DrawPanel extends JPanel {
 	
-	public static final int space = 64;
-	public static final int thickness = 16;
-	public static final int lineLength = space - thickness;
+	public static int space;
+	public static int thickness;
+	public static int lineLength;
 	DotsAndLines parent;
 	
 	public DrawPanel(DotsAndLines parent){
 		super();
 		this.parent = parent;
+		space = parent.space;
+		thickness = parent.thickness;
+		lineLength = space - thickness;
 	}
 	
 	public void paintComponent(Graphics comp) {
