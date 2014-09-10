@@ -20,22 +20,23 @@ public class DotsAndLines extends JFrame implements MouseListener{
 	public static final Color[] colors = new Color[] {Color.white, Color.red, Color.blue, Color.green, Color.orange, Color.pink, Color.cyan};
 	
 	// instance variables
-	int player = 0;
+	int player;
 	int movesLeft = 1;
 	public int[] score;
 	public JLabel[] scoreLabels;
 	public JLabel turnLabel;
+	public DrawPanel displayPanel;
 	
-	public int[][] boardx = new int[boardSize][boardSize +2];
-	public int[][] boardy = new int[boardSize +2][boardSize];
-	public int[][] board = new int[boardSize][boardSize];
+	public int[][] boardx;
+	public int[][] boardy;
+	public int[][] board;
 	
 	public DotsAndLines() {
 		super("Dots And Lines Game");
 		setSize( (boardSize * space) + thickness * 2, (boardSize * space) + thickness + space );
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
-		DrawPanel displayPanel = new DrawPanel(this);
+		displayPanel = new DrawPanel(this);
 		JPanel scorePanel = new JPanel();
 		turnLabel = new JLabel();
 		scorePanel.add(turnLabel);
@@ -60,6 +61,11 @@ public class DotsAndLines extends JFrame implements MouseListener{
 	}
 	
 	private void setupGame() {
+		boardx = new int[boardSize][boardSize +2];
+		boardy = new int[boardSize +2][boardSize];
+		board = new int[boardSize][boardSize];
+		score = new int[players];
+		player = 0;
 		switchPlayer();
 	}
 	
@@ -139,21 +145,30 @@ public class DotsAndLines extends JFrame implements MouseListener{
 				}
 			}
 		}
-		int totalScore = 0;
-		int winningPlayer = 0;
-		for (int i = 0; i < players; i++) {
-			scoreLabels[i].setText(Integer.toString(score[i]));
-			totalScore += score[i];
-			if (score[i] > score[winningPlayer]) {
-				winningPlayer = i;
-			}
-		}
-		if (totalScore == boardSize * boardSize) {
-			JOptionPane.showMessageDialog(this, "player " + (winningPlayer+1) + " won the game!");
-		}
-		this.repaint();
+		// update score label and check for a winner.
+				int totalScore = 0;
+				int winningPlayer = 0;
+				for (int i = 0; i < players; i++) {
+					scoreLabels[i].setText(Integer.toString(score[i]));
+					totalScore += score[i];
+					if (score[i] > score[winningPlayer]) {
+						winningPlayer = i;
+					}
+				}
+				if (totalScore == boardSize * boardSize) {
+					displayPanel.repaint();
+					JOptionPane.showMessageDialog(this, "player " + (winningPlayer+1) + " won the game!");
+					int playAgain = JOptionPane.showOptionDialog(this, "Play Again?", "Play Again", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, 0);
+					if (playAgain == JOptionPane.YES_OPTION) {
+						setupGame();
+					} else {
+						System.exit(0);
+					}
+				}
+				this.repaint();
 		
 	}
+
 	@Override
 	public void mouseEntered(MouseEvent arg0) {}
 	@Override
@@ -203,9 +218,12 @@ class DrawPanel extends JPanel {
 		super.paintComponent(comp);
 		Graphics2D comp2D = (Graphics2D) comp;
 		comp2D.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		
 		comp2D.setColor(Color.BLACK);
 		
+		// update score labels.
+		for (int i = 0; i < parent.players; i++) {
+			parent.scoreLabels[i].setText(Integer.toString(parent.score[i]));
+		}
 		// Draws dots.
 		for (int x = 0; x < parent.boardSize+1; x++) {
 			for (int y = 0; y < parent.boardSize+1; y++) {
