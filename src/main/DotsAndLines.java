@@ -1,10 +1,17 @@
 package main;
 
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 
-import javax.swing.*;
-import javax.swing.colorchooser.ColorSelectionModel;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 
 // change turns and scoring...........................................
 
@@ -13,10 +20,10 @@ public class DotsAndLines extends JFrame implements MouseListener{
 	public static final int Y_AXIS = 1;
 	public static final int X_AXIS = 0;
 	
-	public static int space;
-	public static int thickness;
-	public static int boardSize;
-	public static int players;
+	public int space;
+	public int thickness;
+	public int boardSize;
+	public int players;
 	public static final Color[] colors = new Color[] {Color.white, Color.red, Color.blue, Color.green, Color.orange, Color.pink, Color.cyan};
 	
 	// instance variables
@@ -27,12 +34,17 @@ public class DotsAndLines extends JFrame implements MouseListener{
 	public JLabel turnLabel;
 	public DrawPanel displayPanel;
 	
-	public int[][] boardx;
-	public int[][] boardy;
+	public int[][][] boardLines;
+
 	public int[][] board;
 	
-	public DotsAndLines() {
+	public DotsAndLines(int boardSizeIn, int thicknessIn, int playersIn) {
 		super("Dots And Lines Game");
+		this.boardSize = boardSizeIn;
+		this.thickness = thicknessIn;
+		this.players = playersIn;
+		this.space = thickness * 4;
+		
 		setSize( (boardSize * space) + thickness * 2, (boardSize * space) + thickness + space );
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		
@@ -52,17 +64,19 @@ public class DotsAndLines extends JFrame implements MouseListener{
 		JPanel panel = new JPanel();
 		BorderLayout box = new BorderLayout();
 		panel.setLayout(box);
-		panel.add(scorePanel, box.NORTH);
-		panel.add(displayPanel, box.CENTER);
+		panel.add(scorePanel, BorderLayout.NORTH);
+		panel.add(displayPanel, BorderLayout.CENTER);
 		add(panel);
 		displayPanel.addMouseListener(this);
-		setVisible(true);
 		setupGame();
+		setVisible(true);
+		
 	}
 	
 	private void setupGame() {
-		boardx = new int[boardSize][boardSize +2];
-		boardy = new int[boardSize +2][boardSize];
+		boardLines = new int[2][][];
+		boardLines [X_AXIS] = new int[boardSize][boardSize +2];
+		boardLines [Y_AXIS] = new int[boardSize +2][boardSize];
 		board = new int[boardSize][boardSize];
 		score = new int[players];
 		player = 0;
@@ -72,13 +86,13 @@ public class DotsAndLines extends JFrame implements MouseListener{
 	public void checkSquare(int type, int x, int y, int player) {
 		if (type == X_AXIS) {
 			// if checking from top
-			if (y < boardSize &&  boardx[x][y] > 0 && boardx[x][y +1] > 0 && boardy[x][y] > 0 && boardy[x +1][y] > 0) {
+			if (y < boardSize &&  boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0 && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0) {
 				board[x] [y] = player;
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
 			// if checking from bottom
-			if (y > 0 && boardx[x][y] > 0 && boardx[x][y -1] > 0 && boardy[x][y -1] > 0 && boardy[x +1][y -1] > 0) {
+			if (y > 0 && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x +1][y -1] > 0) {
 				board[x] [y-1] = player;
 				movesLeft += 1;
 				score[player - 1] += 1;
@@ -86,13 +100,13 @@ public class DotsAndLines extends JFrame implements MouseListener{
 		}
 		if (type == Y_AXIS) {
 			// if checking from left
-			if (x < boardSize && boardy[x][y] > 0 && boardy[x +1][y] > 0 && boardx[x][y] > 0 && boardx[x][y +1] > 0) {
+			if (x < boardSize && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0 && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0) {
 				board[x] [y] = player;
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
 			// if checking from right
-			if (x > 0 && boardy[x][y] > 0 && boardy[x -1][y] > 0 && boardx[x -1][y] > 0 && boardx[x -1][y +1] > 0) {
+			if (x > 0 && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y +1] > 0) {
 				board[x-1] [y] = player;
 				movesLeft += 1;
 				score[player - 1] += 1;
@@ -117,14 +131,14 @@ public class DotsAndLines extends JFrame implements MouseListener{
 		DrawPanel panel = (DrawPanel) click.getSource();
 		System.out.println("X: " + x + " Y: " + y);
 		System.out.println("X space: " + (int) x / space + " Y space: " + (int) y / space);
-		//System.out.println("the X space was held by : " + boardx[(int) x / space][(int) y / space] + " the Y space was held by : " + boardy[(int) x / space][(int) y / space]);
+		//System.out.println("the X space was held by : " + boardLines [X_AXIS][(int) x / space][(int) y / space] + " the Y space was held by : " + boardLines [Y_AXIS][(int) x / space][(int) y / space]);
 		System.out.println("X mod space: " + (int) x % space);
 		
 		if( (int) x % space <= thickness){
 			// checks if spot is taken
-			if (boardy[(int) x / space] [(int) y / space] == 0) {
+			if (boardLines [Y_AXIS][(int) x / space] [(int) y / space] == 0) {
 				// clicked on the West.
-				boardy[(int) x / space] [(int) y / space] = player;
+				boardLines [Y_AXIS][(int) x / space] [(int) y / space] = player;
 				checkSquare(Y_AXIS, (int) x / space, (int) y / space, player);
 				movesLeft -= 1;
 				if (movesLeft < 1) {
@@ -134,9 +148,9 @@ public class DotsAndLines extends JFrame implements MouseListener{
 			}
 		} else if ( (int) y % space <= thickness) {
 			// checks if spot is taken
-			if (boardx[(int) x / space] [(int) y / space] == 0) {
+			if (boardLines [X_AXIS][(int) x / space] [(int) y / space] == 0) {
 				// clicked on the North
-				boardx[(int) x / space] [(int) y / space] = player;
+				boardLines [X_AXIS][(int) x / space] [(int) y / space] = player;
 				checkSquare(X_AXIS, (int) x / space, (int) y / space, player);
 				movesLeft -= 1;
 				if (movesLeft < 1) {
@@ -146,26 +160,26 @@ public class DotsAndLines extends JFrame implements MouseListener{
 			}
 		}
 		// update score label and check for a winner.
-				int totalScore = 0;
-				int winningPlayer = 0;
-				for (int i = 0; i < players; i++) {
-					scoreLabels[i].setText(Integer.toString(score[i]));
-					totalScore += score[i];
-					if (score[i] > score[winningPlayer]) {
-						winningPlayer = i;
-					}
-				}
-				if (totalScore == boardSize * boardSize) {
-					displayPanel.repaint();
-					JOptionPane.showMessageDialog(this, "player " + (winningPlayer+1) + " won the game!");
-					int playAgain = JOptionPane.showOptionDialog(this, "Play Again?", "Play Again", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, 0);
-					if (playAgain == JOptionPane.YES_OPTION) {
-						setupGame();
-					} else {
-						System.exit(0);
-					}
-				}
-				this.repaint();
+		int totalScore = 0;
+		int winningPlayer = 0;
+		for (int i = 0; i < players; i++) {
+			scoreLabels[i].setText(Integer.toString(score[i]));
+			totalScore += score[i];
+			if (score[i] > score[winningPlayer]) {
+				winningPlayer = i;
+			}
+		}
+		if (totalScore == boardSize * boardSize) {
+			displayPanel.repaint();
+			JOptionPane.showMessageDialog(this, "player " + (winningPlayer+1) + " won the game!");
+			int playAgain = JOptionPane.showOptionDialog(this, "Play Again?", "Play Again", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE, null, null, 0);
+			if (playAgain == JOptionPane.YES_OPTION) {
+				setupGame();
+			} else {
+				System.exit(0);
+			}
+		}
+		this.repaint();
 		
 	}
 
@@ -179,28 +193,32 @@ public class DotsAndLines extends JFrame implements MouseListener{
 	public void mouseReleased(MouseEvent arg0) {}
 	
 	public static void main(String[] args) {
+		int boardSizeIN;
+		int thicknessIN;
+		int playersIN;
+		
 		if (args.length == 3) {
-			boardSize = Integer.parseInt(args[0]);
-			thickness = Integer.parseInt(args[1]);
-			players = Integer.parseInt(args[2]);
+			boardSizeIN = Integer.parseInt(args[0]);
+			thicknessIN = Integer.parseInt(args[1]);
+			playersIN = Integer.parseInt(args[2]);
 			
 		} else {
-			boardSize = 10;
-			thickness = 16;
-			players = 2;
+			boardSizeIN = 10;
+			thicknessIN = 16;
+			playersIN = 2;
 		}
-		if (players >= colors.length || boardSize > 15){
+		if (playersIN >= colors.length || boardSizeIN > 15){
 			JOptionPane.showMessageDialog(null, "comand-line argument(s) invalid", "Error", JOptionPane.ERROR_MESSAGE);
 			System.exit(ERROR);
 		}
-		space = thickness * 4;
-		
-		DotsAndLines frame = new DotsAndLines();
+		DotsAndLines frame = new DotsAndLines(boardSizeIN,thicknessIN,playersIN);
 	}
 }
 
 class DrawPanel extends JPanel {
 	
+	private static final int X_AXIS = 0;
+	private static final int Y_AXIS = 1;
 	public static int space;
 	public static int thickness;
 	public static int lineLength;
@@ -230,27 +248,24 @@ class DrawPanel extends JPanel {
 				comp2D.fillRect(x * space, y * space, thickness, thickness);
 			}
 		}
-		
 		// Checks all lines on the X axis then draws the lines on the X axis.
-		for (int x = 0; x < parent.boardx.length; x++) {
-			for (int y = 0; y < parent.boardx[x].length; y++) {
-				comp2D.setColor( parent.colors[parent.boardx[x][y] ] );
+		for (int x = 0; x < parent.boardLines [X_AXIS].length; x++) {
+			for (int y = 0; y < parent.boardLines [X_AXIS][x].length; y++) {
+				comp2D.setColor( DotsAndLines.colors[parent.boardLines [X_AXIS][x][y] ] );
 				comp2D.fillRect(x * space + thickness, y * space, lineLength, thickness);
 			}
 		}
-		
-		// Checks all lines on the Y axis then draws the lines on the Y axis.
-		for (int x = 0; x < parent.boardy.length; x++) {
-			for (int y = 0; y < parent.boardy[x].length; y++) {
-				comp2D.setColor(parent.colors[parent.boardy[x][y]]);
+		// Checks all lines on the X axis then draws the lines on the Y axis.
+		for (int x = 0; x < parent.boardLines [Y_AXIS].length; x++) {
+			for (int y = 0; y < parent.boardLines [Y_AXIS][x].length; y++) {
+				comp2D.setColor( DotsAndLines.colors[parent.boardLines [Y_AXIS][x][y] ] );
 				comp2D.fillRect(x * space, y * space + thickness, thickness, lineLength);
 			}
 		}
-		
 		// Checks all squares then displays the owner.
 		for (int x = 0; x < parent.board.length; x++) {
 			for (int y = 0; y < parent.board[x].length; y++) {
-				comp2D.setColor( parent.colors[parent.board[x][y] ] );
+				comp2D.setColor( DotsAndLines.colors[parent.board[x][y] ] );
 				comp2D.fillRect(x * space + thickness + (thickness / 2), y * space + thickness + (thickness / 2), thickness * 2, thickness * 2);
 			}
 		}
