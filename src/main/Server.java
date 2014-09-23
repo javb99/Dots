@@ -1,4 +1,4 @@
-package server;
+package main;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -92,7 +92,37 @@ public class Server {
 		}
 	}
 	public void send(String message) {
-		
+		for (int i = 1; i < clients.length; i++) {
+			send(clients[i], message);
+		}
+	}
+	
+	public void notifyStartGame(int numPlayers, int boardSize) {
+		send("start " + numPlayers + "_" + boardSize);
+	}
+	
+	public void notifyPlayerTurn(int playerID) {
+		send("turn " + playerID);
+	}
+	
+	public void notifyMove(int playerID, int axis, int x, int y) {
+		send("move " + playerID + "_" + axis + "_" + x + "_" + y);
+	}
+	
+	public void notifySquare(int playerID, int x, int y) {
+		send("square " + playerID + "_" + x + "_" + y);
+	}
+	
+	public void notifyScore(int playerID, int score) {
+		send("score " + playerID + "_" + score);
+	}
+	
+	public void notifyNumberOfPlayers(int numberOfPlayers) {
+		send("players " + numberOfPlayers);
+	}
+	
+	public void notifyEndGame(int winner) {
+		send("end " + winner);
 	}
 	
 	public void readInput(BufferedReader reader) {
@@ -103,7 +133,7 @@ public class Server {
 			String line = new String(message);
 			String[] commands = line.split(" ");
 			
-			// evals to true is the client is trying to make a move.
+			// evals to true if the client is trying to make a move.
 			if (commands[0] == "line") {
 				if (gameStarted == true) {
 					String[] lineParams = commands[1].split("_");
@@ -111,8 +141,8 @@ public class Server {
 					int axis = Integer.parseInt(lineParams[1]);
 					int x = Integer.parseInt(lineParams[2]);
 					int y = Integer.parseInt(lineParams[3]);
-					if (player == this.player) {
-						inputMove(axis,x,y,player);
+					if (inputMove(axis,x,y,player)) {
+						notifyPlayerTurn(this.player);
 					}
 				}
 			} else {
@@ -120,7 +150,6 @@ public class Server {
 			}
 			
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -136,18 +165,24 @@ public class Server {
 		movesLeft = 1;
 		switchPlayer();
 		gameStarted = true;
+		notifyStartGame(players, boardSize);
 	}
-	public void inputMove(int axis, int x, int y, int player){
+	public boolean inputMove(int axis, int x, int y, int player){
 		// checks if spot is taken
-		if (boardLines [axis] [x] [y] == 0) {
-			
+		if (boardLines [axis] [x] [y] == 0 && player == this.player) {
 			boardLines [axis] [x] [y] = player;
+			notifyMove(this.player, axis, x, y);
 			checkSquare(axis, x, y, player);
+			notifyScore(this.player, score[this.player - 1]);
 			movesLeft -= 1;
 			if (movesLeft < 1) {
 				switchPlayer();
 				movesLeft = 1;
 			}
+			
+			return true;
+		} else {
+			return false;
 		}
 	}
 	
@@ -156,12 +191,14 @@ public class Server {
 			// if checking from top
 			if (y < boardSize &&  boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0 && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0) {
 				board[x] [y] = player;
+				notifySquare(player, x, y);
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
 			// if checking from bottom
 			if (y > 0 && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x +1][y -1] > 0) {
 				board[x] [y-1] = player;
+				notifySquare(player, x, y);
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
@@ -170,12 +207,14 @@ public class Server {
 			// if checking from left
 			if (x < boardSize && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0 && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0) {
 				board[x] [y] = player;
+				notifySquare(player, x, y);
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
 			// if checking from right
 			if (x > 0 && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y +1] > 0) {
 				board[x-1] [y] = player;
+				notifySquare(player, x, y);
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
@@ -188,7 +227,7 @@ public class Server {
 		} else {
 			player += 1;
 		}
-		// TODO: send message informing clients of turn change.
+		notifyPlayerTurn(this.player);
 	}
 	public static void main(String[] args) {
 		int boardSizeL = 10;
