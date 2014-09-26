@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.*;
 
@@ -20,7 +21,7 @@ public class Server {
 	public int[][][] boardLines;
 	public int[][] board;
 	public int[] score;
-	public int players;
+	public int players = 2;
 	public int player;
 	public int movesLeft;
 	// server related
@@ -34,6 +35,7 @@ public class Server {
 	public Server(int boardSize, int players) {
 		this.boardSize = boardSize;
 		this.players = players;
+		clients = new Socket[players];
 		try { 
 			selector = Selector.open(); 
 			server = ServerSocketChannel.open(); 
@@ -41,6 +43,7 @@ public class Server {
 			server.configureBlocking(false); 
 			server.register(selector, SelectionKey.OP_ACCEPT, "Main accept server"); 
 			while (true) {
+				System.out.println("selecting");
 				selector.select();
 				Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
 				while (iter.hasNext()) { 
@@ -49,7 +52,8 @@ public class Server {
 					if (key.isConnectable()) { 
 						((SocketChannel)key.channel()).finishConnect(); 
 					} 
-					if (key.isAcceptable()) { 
+					if (key.isAcceptable()) {
+						System.out.println("got connection.");
 						// accept connection 
 						SocketChannel client = server.accept(); 
 						client.configureBlocking(false); 
@@ -57,15 +61,14 @@ public class Server {
 						client.register(selector, SelectionKey.OP_READ, numberClients);
 						clients[numberClients] = client.socket();
 						
-						if (numberClients == players) {
+						if (numberClients + 1 == players) {
 							setupGame();
 						}
 						numberClients += 1;
 					} 
 					if (key.isReadable()) { 
 						Socket sock = clients[(int) key.attachment()];
-						BufferedReader reader = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-						readInput(reader);
+						readInput(sock);
 					} 
 				}
 			}   		
@@ -83,33 +86,39 @@ public class Server {
 	}
 	public void send(Socket connection, String message) {
 		try {
-			PrintWriter pw = new PrintWriter( new BufferedOutputStream(connection.getOutputStream() ), false );
 			char lengthChar = (char) message.length();
-			pw.write(lengthChar + message);
-			pw.flush();
-		} catch (IOException e) {
-			System.out.println(e.getMessage());
+			String command = lengthChar + message;
+			ByteBuffer buff = ByteBuffer.wrap(command.getBytes());;
+			connection.getChannel().write(buff);
+		} catch (Exception e) {
+			System.out.println("error: " + e.toString());
 		}
 	}
 	public void send(String message) {
-		for (int i = 1; i < clients.length; i++) {
+		for (int i = 0; i < clients.length; i++) {
 			send(clients[i], message);
 		}
 	}
 	
 	public void notifyStartGame(int numPlayers, int boardSize) {
-		send("start " + numPlayers + "_" + boardSize);
+		//send("start " + numPlayers + "_" + boardSize);
+		for (int i = 0; i < clients.length; i++) {
+			send(clients[i], "start " + numPlayers + "_" + boardSize + "_" + (i + 1));
+		}
 	}
 	
 	public void notifyPlayerTurn(int playerID) {
+		System.out.println(playerID + "'s turn now.");
 		send("turn " + playerID);
 	}
 	
 	public void notifyMove(int playerID, int axis, int x, int y) {
+		System.out.println("player " + playerID + " placed a line");
 		send("move " + playerID + "_" + axis + "_" + x + "_" + y);
 	}
 	
 	public void notifySquare(int playerID, int x, int y) {
+		System.out.println("player " + playerID + " finished a square");
 		send("square " + playerID + "_" + x + "_" + y);
 	}
 	
@@ -125,32 +134,45 @@ public class Server {
 		send("end " + winner);
 	}
 	
-	public void readInput(BufferedReader reader) {
+	public void readInput(Socket client) {
+		System.out.println("reading input");
 		try {
-			int length = reader.read();
-			char[] message = new char[length];
-			reader.read(message);
+			ByteBuffer buff = ByteBuffer.wrap(new byte[1]);
+			client.getChannel().read(buff);
+			int length = buff.get(0);
+			buff = ByteBuffer.wrap(new byte[length]);
+			client.getChannel().read(buff);
+			StringBuilder builder = new StringBuilder();
+			for (int i = 0; i < buff.capacity(); i++) {
+				builder.append((char) buff.get(i));
+			}
+			String message = builder.toString();
 			String line = new String(message);
 			String[] commands = line.split(" ");
 			
 			// evals to true if the client is trying to make a move.
-			if (commands[0] == "line") {
+			if (commands[0].matches("line")) {
 				if (gameStarted == true) {
 					String[] lineParams = commands[1].split("_");
 					int player = Integer.parseInt(lineParams[0]);
 					int axis = Integer.parseInt(lineParams[1]);
 					int x = Integer.parseInt(lineParams[2]);
 					int y = Integer.parseInt(lineParams[3]);
-					if (inputMove(axis,x,y,player)) {
+					System.out.println("player:" + player);
+					System.out.println("axis:" + axis);
+					System.out.println("x:" + x);
+					System.out.println("y:" + y);
+					if (!inputMove(axis,x,y,player)) {
 						notifyPlayerTurn(this.player);
 					}
 				}
 			} else {
-				System.out.println("message not correct format");
+				System.out.println("message not correct format:" + message + ":end");
 			}
 			
 		} catch (IOException e) {
 			e.printStackTrace();
+			System.out.println("client lost connection.");
 		}
 	}
 	
@@ -163,15 +185,15 @@ public class Server {
 		score = new int[players];
 		player = 0;
 		movesLeft = 1;
-		switchPlayer();
-		gameStarted = true;
 		notifyStartGame(players, boardSize);
+		gameStarted = true;
+		switchPlayer();
 	}
 	public boolean inputMove(int axis, int x, int y, int player){
 		// checks if spot is taken
 		if (boardLines [axis] [x] [y] == 0 && player == this.player) {
 			boardLines [axis] [x] [y] = player;
-			notifyMove(this.player, axis, x, y);
+			notifyMove(player, axis, x, y);
 			checkSquare(axis, x, y, player);
 			notifyScore(this.player, score[this.player - 1]);
 			movesLeft -= 1;
@@ -198,7 +220,7 @@ public class Server {
 			// if checking from bottom
 			if (y > 0 && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x +1][y -1] > 0) {
 				board[x] [y-1] = player;
-				notifySquare(player, x, y);
+				notifySquare(player, x, y-1);
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
@@ -214,7 +236,7 @@ public class Server {
 			// if checking from right
 			if (x > 0 && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y +1] > 0) {
 				board[x-1] [y] = player;
-				notifySquare(player, x, y);
+				notifySquare(player, x-1, y);
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
@@ -230,7 +252,7 @@ public class Server {
 		notifyPlayerTurn(this.player);
 	}
 	public static void main(String[] args) {
-		int boardSizeL = 10;
+		int boardSizeL = 4;
 		int playersL = 2;
 		if (args.length == 3) {
 			boardSizeL = Integer.parseInt(args[0]);
