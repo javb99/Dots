@@ -27,11 +27,7 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 	public static final Color[] colors = new Color[] {Color.white, Color.red, Color.blue, Color.green, Color.orange, Color.pink, Color.cyan};
 	
 	// instance variables
-	int player;
 	int movesLeft = 1;
-	public int[][][] boardLines;
-	public int[][] boardSquares;
-	public int[] score;
 	public JLabel[] scoreLabels;
 	public JLabel turnLabel;
 	public DrawPanel displayPanel;
@@ -41,29 +37,18 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 	
 	public HumanDisplay(int boardSizeIn, int thicknessIn, int playersIn) {
 		super("Dots And Lines Game");
-		ClientNetwork clientNetwork = new ClientNetwork(this);
+		clientNetwork = new ClientNetwork(this);
 		
-		this.boardSize = boardSizeIn;
 		this.thickness = thicknessIn;
-		this.players = playersIn;
 		this.space = thickness * 4;
 		
-		setSize( (boardSize * space) + thickness * 2, (boardSize * space) + thickness + space );
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		
 		
 		displayPanel = new DrawPanel(this);
 		JPanel scorePanel = new JPanel();
 		turnLabel = new JLabel();
 		scorePanel.add(turnLabel);
-		score = new int[players];
-		scoreLabels = new JLabel[players];
-		for (int i = 0; i < scoreLabels.length; i++) {
-			
-			scoreLabels[i] = new JLabel(Integer.toString(score[i]));
-			scoreLabels[i].setForeground(colors[i+1]);
-			scoreLabels[i].setVisible(true);
-			scorePanel.add(scoreLabels[i]);
-		}
+		
 		JPanel panel = new JPanel();
 		BorderLayout box = new BorderLayout();
 		panel.setLayout(box);
@@ -78,16 +63,17 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 	public void mouseClicked(MouseEvent click) {
 		int x = click.getX();
 		int y = click.getY();
+		int X = x / space;
+		int Y = y / space;
 		DrawPanel panel = (DrawPanel) click.getSource();
 		
 		if( (int) x % space <= thickness){
-			clientNetwork.sendLine(player, Y_AXIS, x, y);
+			clientNetwork.sendLine(clientNetwork.getMyID(), Y_AXIS, X, Y);
+			System.out.println("clicked on the Y");
 		} else if ( (int) y % space <= thickness) {
-			clientNetwork.sendLine(player, X_AXIS, x, y);
-		}
-		for (int i = 0; i < players; i++) {
-			scoreLabels[i].setText(Integer.toString(clientNetwork.getScore(i)));
-		}		
+			clientNetwork.sendLine(clientNetwork.getMyID(), X_AXIS, X, Y);
+			System.out.println("clicked on the X");
+		}	
 	}
 
 	@Override
@@ -115,34 +101,53 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 
 	@Override
 	public void connected() {
-		// TODO Auto-generated method stub
-		
+		System.out.println("connection called");
 	}
 
 	@Override
-	public void gameStarting(int numberOfPlayers) {
-		boardLines = new int[2][][];
-		boardLines [X_AXIS] = new int[boardSize][boardSize +2];
-		boardLines [Y_AXIS] = new int[boardSize +2][boardSize];
-		boardSquares = new int[boardSize][boardSize];
-		score = new int[players];
-		player = 0;
+	public void gameStarting(int numberOfPlayers, int boardSize, int myID) {
+		System.out.println("game starting called");
+		// non gui
+		this.boardSize = boardSize;
+		System.out.println("my id: " + myID);
+		// gui
+		setSize( (boardSize * space) + thickness * 2, (boardSize * space) + thickness + space );
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		displayPanel = new DrawPanel(this);
+		JPanel scorePanel = new JPanel();
+		turnLabel = new JLabel();
+		scorePanel.add(turnLabel);
+		scoreLabels = new JLabel[players];
+		for (int i = 0; i < scoreLabels.length; i++) {
+			scoreLabels[i] = new JLabel(Integer.toString(clientNetwork.getScore(i)));
+			scoreLabels[i].setForeground(colors[i+1]);
+			scoreLabels[i].setVisible(true);
+			scorePanel.add(scoreLabels[i]);
+		}
+		JPanel panel = new JPanel();
+		BorderLayout box = new BorderLayout();
+		panel.setLayout(box);
+		panel.add(scorePanel, BorderLayout.NORTH);
+		panel.add(displayPanel, BorderLayout.CENTER);
+		add(panel);
+		displayPanel.addMouseListener(this);
+		
 		this.setVisible(true);
 	}
 
 	@Override
 	public void turn(int player) {
-		this.player = player;
+		System.out.println("turn called");
 	}
 
 	@Override
 	public void move(int player, int axis, int x, int y) {
-		boardLines[axis][x][y] = player;
+		displayPanel.repaint();
 	}
 
 	@Override
 	public void square(int player, int x, int y) {
-		boardSquares[x][y] = player;
+		displayPanel.repaint();
 	}
 
 	@Override
@@ -178,6 +183,7 @@ class DrawPanel extends JPanel {
 		// update score labels.
 		for (int i = 0; i < parent.players; i++) {
 			parent.scoreLabels[i].setText(Integer.toString(parent.clientNetwork.getScore(i)));
+			System.out.println(parent.clientNetwork.getScore(i));
 		}
 		// Draws dots.
 		for (int x = 0; x < parent.boardSize+1; x++) {
@@ -186,23 +192,23 @@ class DrawPanel extends JPanel {
 			}
 		}
 		// Checks all lines on the X axis then draws the lines on the X axis.
-		for (int x = 0; x < parent.boardLines [X_AXIS].length; x++) {
-			for (int y = 0; y < parent.boardLines [X_AXIS][x].length; y++) {
-				comp2D.setColor( HumanDisplay.colors[parent.boardLines [X_AXIS][x][y] ] );
+		for (int x = 0; x < parent.clientNetwork.getBoardLines()[X_AXIS].length; x++) {
+			for (int y = 0; y < parent.clientNetwork.getBoardLines()[X_AXIS][x].length; y++) {
+				comp2D.setColor( HumanDisplay.colors[parent.clientNetwork.getOwnerLine(X_AXIS, x, y)] );
 				comp2D.fillRect(x * space + thickness, y * space, lineLength, thickness);
 			}
 		}
-		// Checks all lines on the X axis then draws the lines on the Y axis.
-		for (int x = 0; x < parent.boardLines [Y_AXIS].length; x++) {
-			for (int y = 0; y < parent.boardLines [Y_AXIS][x].length; y++) {
-				comp2D.setColor( HumanDisplay.colors[parent.boardLines [Y_AXIS][x][y] ] );
+		// Checks all lines on the Y axis then draws the lines on the Y axis.
+		for (int x = 0; x < parent.clientNetwork.getBoardLines()[Y_AXIS].length; x++) {
+			for (int y = 0; y < parent.clientNetwork.getBoardLines()[Y_AXIS][x].length; y++) {
+				comp2D.setColor( HumanDisplay.colors[parent.clientNetwork.getOwnerLine(Y_AXIS, x, y)] );
 				comp2D.fillRect(x * space, y * space + thickness, thickness, lineLength);
 			}
 		}
 		// Checks all squares then displays the owner.
-		for (int x = 0; x < parent.boardSquares.length; x++) {
-			for (int y = 0; y < parent.boardSquares[x].length; y++) {
-				comp2D.setColor( HumanDisplay.colors[parent.boardSquares[x][y] ] );
+		for (int x = 0; x < parent.clientNetwork.getBoardSquares().length; x++) {
+			for (int y = 0; y < parent.clientNetwork.getBoardSquares()[x].length; y++) {
+				comp2D.setColor( HumanDisplay.colors[parent.clientNetwork.getOwnerSquare(x, y)] );
 				comp2D.fillRect(x * space + thickness + (thickness / 2), y * space + thickness + (thickness / 2), thickness * 2, thickness * 2);
 			}
 		}

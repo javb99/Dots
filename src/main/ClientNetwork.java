@@ -6,14 +6,12 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.SocketChannel;
-import java.util.Iterator;
+import java.nio.ByteBuffer;
 
 public class ClientNetwork implements Runnable{
 	
-	public static final int boardSize = 10;
+	private static final int X_AXIS = 0;
+	private static final int Y_AXIS = 1;
 	// network related
 	private Thread runner;
 	public Socket server;
@@ -27,6 +25,7 @@ public class ClientNetwork implements Runnable{
 	private int winner;
 	private int players;
 	private int player;
+	private int myID;
 	// display related
 	public IDisplay display;
 	
@@ -43,22 +42,12 @@ public class ClientNetwork implements Runnable{
 	@Override
 	public void run() {
 		try {
-			Selector selector = Selector.open();
-			SocketChannel sockChannel = SocketChannel.open(new InetSocketAddress("localhost", 1010));
-			Socket client = sockChannel.socket();
+			client = new Socket();
+			client.connect(new InetSocketAddress("localhost", 1010));
 			BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream()));
-			out = new PrintWriter(server.getOutputStream());
 			display.connected();
 			while(true) {
-				selector.select(1);
-				Iterator<SelectionKey> iter = selector.selectedKeys().iterator();
-				while (iter.hasNext()) { 
-					SelectionKey key = iter.next(); 
-					iter.remove(); 
-					if (key.isReadable()) { 
-						readInput(input);
-					} 
-				}
+				readInput(input);
 			}
 		} catch (IOException ioe) {
 			System.out.println(ioe.getMessage());
@@ -72,7 +61,19 @@ public class ClientNetwork implements Runnable{
 	}
 	// use this to send moves to server.
 	public void sendLine(int player, int axis, int x, int y) {
-		out.println("line " + player + "_" + axis + "_" + x + "_" + y);
+		//out.println("line " + player + "_" + axis + "_" + x + "_" + y);
+		send(client, "line " + player + "_" + axis + "_" + x + "_" + y);
+	}
+	
+	public void send(Socket connection, String message) {
+		try {
+			char lengthChar = (char) message.length();
+			String command = lengthChar + message;
+			connection.getOutputStream().write(command.getBytes());
+			System.out.write(command.getBytes());
+		} catch (Exception e) {
+			System.out.println("error: " + e.toString());
+		}
 	}
 	
 	private void readInput(BufferedReader reader) {
@@ -81,6 +82,7 @@ public class ClientNetwork implements Runnable{
 		int y;
 		int axis;
 		int score;
+		int boardSize;
 		
 		try {
 			int length = reader.read();
@@ -93,8 +95,16 @@ public class ClientNetwork implements Runnable{
 			switch(commands[0]) {
 			case "start": // Notifying that the game is starting.
 				players = Integer.parseInt(commandParams[0]);
+				boardSize = Integer.parseInt(commandParams[1]);
+				myID = Integer.parseInt(commandParams[2]);
+				boardLines = new int[2][][];
+				boardLines [X_AXIS] = new int[boardSize][boardSize +2];
+				boardLines [Y_AXIS] = new int[boardSize +2][boardSize];
+				boardSquares = new int[boardSize][boardSize];
+				scores = new int[players + 1];
+				player = 0;
 				gameStarted = true;
-				display.gameStarting(players);
+				display.gameStarting(players, boardSize, myID);
 				break;
 				
 			case "turn": // Notifying who's turn it is.
@@ -141,5 +151,25 @@ public class ClientNetwork implements Runnable{
 	
 	public int getScore(int player) {
 		return scores[player];
+	}
+	
+	public int getMyID() {
+		return myID;
+	}
+	
+	public int getOwnerLine(int axis, int x, int y) {
+		return boardLines[axis][x][y];
+	}
+	
+	public int getOwnerSquare(int x, int y) {
+		return boardSquares[x][y];
+	}
+	
+	public int[][][] getBoardLines() {
+		return boardLines;
+	}
+	
+	public int[][] getBoardSquares() {
+		return boardSquares;
 	}
 }

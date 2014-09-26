@@ -4,7 +4,7 @@ public interface IDisplay {
 	
 	public void connected();
 	
-	public void gameStarting(int numberOfPlayers);
+	public void gameStarting(int numberOfPlayers, int boardSize, int myID);
 	
 	public void turn(int player);
 	
