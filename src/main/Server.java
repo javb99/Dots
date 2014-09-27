@@ -19,7 +19,7 @@ public class Server {
 	public static final int Y_AXIS = 1;
 	public int boardSize;
 	public int[][][] boardLines;
-	public int[][] board;
+	public int[][] boardSquares;
 	public int[] score;
 	public int players = 2;
 	public int player;
@@ -181,7 +181,7 @@ public class Server {
 		boardLines = new int[2][][];
 		boardLines[X_AXIS] = new int[boardSize][boardSize +2];
 		boardLines[Y_AXIS] = new int[boardSize +2][boardSize];
-		board = new int[boardSize][boardSize];
+		boardSquares = new int[boardSize][boardSize];
 		score = new int[players];
 		player = 0;
 		movesLeft = 1;
@@ -196,6 +196,7 @@ public class Server {
 			notifyMove(player, axis, x, y);
 			checkSquare(axis, x, y, player);
 			notifyScore(this.player, score[this.player - 1]);
+			isGameWon();
 			movesLeft -= 1;
 			if (movesLeft < 1) {
 				switchPlayer();
@@ -208,18 +209,43 @@ public class Server {
 		}
 	}
 	
+	private void isGameWon() {
+		int[] playerScores = new int[players + 1];
+		// Checks all squares then displays the owner.
+		for (int x = 0; x < boardSquares.length; x++) {
+			for (int y = 0; y < boardSquares[x].length; y++) {
+				playerScores[boardSquares[x][y]] += 1;
+			}
+		}
+		int max = 0;
+		for (int i = 1; i < playerScores.length; i++) {
+			if (playerScores[i] > playerScores[max]) {
+				max = i;
+			}
+		}
+		for (int i = 1; i < playerScores.length; i++) {
+			if (playerScores[i] > playerScores[max]) {
+				max = i;
+			}
+		}
+		for (int i = 1; i < playerScores.length; i++) {
+			if (playerScores[i] > (boardSize * boardSize) / (players) ) {
+				notifyEndGame(i);
+			}
+		}
+	}
 	public void checkSquare(int type, int x, int y, int player) {
 		if (type == X_AXIS) {
 			// if checking from top
 			if (y < boardSize &&  boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0 && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0) {
-				board[x] [y] = player;
+				boardSquares[x] [y] = player;
 				notifySquare(player, x, y);
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
 			// if checking from bottom
 			if (y > 0 && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x +1][y -1] > 0) {
-				board[x] [y-1] = player;
+				boardSquares[x] [y-1] = player;
 				notifySquare(player, x, y-1);
 				movesLeft += 1;
 				score[player - 1] += 1;
@@ -228,14 +254,14 @@ public class Server {
 		if (type == Y_AXIS) {
 			// if checking from left
 			if (x < boardSize && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0 && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0) {
-				board[x] [y] = player;
+				boardSquares[x] [y] = player;
 				notifySquare(player, x, y);
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
 			// if checking from right
 			if (x > 0 && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y +1] > 0) {
-				board[x-1] [y] = player;
+				boardSquares[x-1] [y] = player;
 				notifySquare(player, x-1, y);
 				movesLeft += 1;
 				score[player - 1] += 1;
