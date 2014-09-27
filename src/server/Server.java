@@ -200,6 +200,8 @@ public class Server {
 			if (movesLeft < 1) {
 				switchPlayer();
 				movesLeft = 1;
+			} else {
+				notifyPlayerTurn(this.player); // Notify the player it is their turn again.
 			}
 			
 			return true;

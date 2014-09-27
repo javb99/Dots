@@ -15,19 +15,21 @@ public class JamesComputer extends ComputerPlayer {
 			int boardSize = boardController.getBoardSize();
 			
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(100);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 
+			findMove:
 			for(int axis=Constants.X_AXIS; axis<=Constants.Y_AXIS; ++axis) {
-				for(int x=0; x<boardSize; ++x) {
-					for(int y=0; y<boardSize; ++y) {
+				int xSize = axis == Constants.Y_AXIS ? boardSize+1 : boardSize;
+				for(int x=0; x<xSize; ++x) {
+					int ySize = axis == Constants.X_AXIS ? boardSize+1 : boardSize;
+					for(int y=0; y<ySize; ++y) {
 						int owner = boardController.getOwnerLine(axis, x, y);
 						if(owner == 0) {
 							boardController.playLine(axis, x, y);
-							return;
+							break findMove;
 						}
 					}
 				}
