@@ -31,7 +31,6 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 	public static final Color[] colors = new Color[] {Color.white, Color.red, Color.blue, Color.green, Color.orange, Color.pink, Color.cyan};
 	
 	// instance variables
-	int movesLeft = 1;
 	public JLabel[] scoreLabels;
 	public JLabel turnLabel;
 	public DrawPanel displayPanel;
@@ -39,9 +38,9 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 	
 	
 	
-	public HumanDisplay(int boardSizeIn, int thicknessIn, int playersIn) {
+	public HumanDisplay(int boardSizeIn, int thicknessIn, int playersIn, int portIn) {
 		super("Dots And Lines Game");
-		clientNetwork = new ClientNetwork(this);
+		clientNetwork = new ClientNetwork(this, portIn);
 		
 		this.thickness = thicknessIn;
 		this.space = thickness * 4;
@@ -71,10 +70,10 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 		int Y = y / space;
 		
 		if( (int) x % space <= thickness){
-			clientNetwork.sendLine(clientNetwork.getMyID(), Y_AXIS, X, Y);
+			clientNetwork.sendLine(Y_AXIS, X, Y);
 			System.out.println("clicked on the Y");
 		} else if ( (int) y % space <= thickness) {
-			clientNetwork.sendLine(clientNetwork.getMyID(), X_AXIS, X, Y);
+			clientNetwork.sendLine(X_AXIS, X, Y);
 			System.out.println("clicked on the X");
 		}	
 	}
@@ -89,17 +88,17 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 	public void mouseReleased(MouseEvent arg0) {}
 	
 	public static void main(String[] args) {
-		int thicknessIN;
-		if (args.length == 1) {
+		int thicknessIN = 16;
+		int portIN = 65001;
+		if (args.length == 2) {
 			thicknessIN = Integer.parseInt(args[0]);
-		} else {
-			thicknessIN = 16;
+			portIN = Integer.parseInt(args[1]);
 		}
-		if (thicknessIN > 64){
+		if (thicknessIN > 64 && portIN > 1024 && portIN < 65535 ){
 			JOptionPane.showMessageDialog(null, "comand-line argument(s) invalid", "Error", JOptionPane.ERROR_MESSAGE);
 			System.exit(ERROR);
 		}
-		new HumanDisplay(10, thicknessIN, 2);
+		new HumanDisplay(10, thicknessIN, 2, portIN);
 	}
 
 	@Override

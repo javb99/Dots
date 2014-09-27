@@ -26,7 +26,6 @@ public class Server {
 	public int movesLeft;
 	// server related
 	public boolean gameStarted;
-	
 	public Selector selector;
 	public ServerSocketChannel server;
 	public int numberClients;
