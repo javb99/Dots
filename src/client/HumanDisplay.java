@@ -15,7 +15,7 @@ import javax.swing.JPanel;
 
 // change turns and scoring...........................................
 
-public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
+public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 	/**
 	 * 
 	 */
@@ -35,17 +35,17 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 	public JLabel turnLabel;
 	public DrawPanel displayPanel;
 	public ClientNetwork clientNetwork;
-	
-	
+	public Player computerPlayer;
 	
 	public HumanDisplay(int boardSizeIn, int thicknessIn, int playersIn, int portIn) {
 		super("Dots And Lines Game");
+		
+		//computerPlayer = new JamesComputer();
+		
 		clientNetwork = new ClientNetwork(this, portIn);
 		
 		this.thickness = thicknessIn;
 		this.space = thickness * 4;
-		
-		
 		
 		displayPanel = new DrawPanel(this);
 		JPanel scorePanel = new JPanel();
@@ -59,23 +59,26 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 		panel.add(displayPanel, BorderLayout.CENTER);
 		add(panel);
 		displayPanel.addMouseListener(this);
-		
 	}
 
 	@Override
 	public void mouseClicked(MouseEvent click) {
-		int x = click.getX();
-		int y = click.getY();
-		int X = x / space;
-		int Y = y / space;
 		
-		if( (int) x % space <= thickness){
-			clientNetwork.sendLine(Y_AXIS, X, Y);
-			System.out.println("clicked on the Y");
-		} else if ( (int) y % space <= thickness) {
-			clientNetwork.sendLine(X_AXIS, X, Y);
-			System.out.println("clicked on the X");
-		}	
+		if(computerPlayer == null)
+		{
+			int x = click.getX();
+			int y = click.getY();
+			int X = x / space;
+			int Y = y / space;
+			
+			if( (int) x % space <= thickness){
+				clientNetwork.sendLine(Y_AXIS, X, Y);
+				System.out.println("clicked on the Y");
+			} else if ( (int) y % space <= thickness) {
+				clientNetwork.sendLine(X_AXIS, X, Y);
+				System.out.println("clicked on the X");
+			}	
+		}
 	}
 
 	@Override
@@ -138,24 +141,33 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 	}
 
 	@Override
+	public void gameOver(int winner) {
+		displayPanel.repaint();
+		JOptionPane.showMessageDialog(this, "player " + (winner) + " won the game!");
+	}
+	
+	@Override
 	public void turn(int player) {
+		if(computerPlayer != null) {
+			computerPlayer.turn(player);
+		}
 		System.out.println("turn called");
 	}
 
 	@Override
 	public void move(int player, int axis, int x, int y) {
+		if(computerPlayer != null) {
+			computerPlayer.move(player, axis, x, y);
+		}
 		displayPanel.repaint();
 	}
 
 	@Override
 	public void square(int player, int x, int y) {
+		if(computerPlayer != null) {
+			computerPlayer.square(player, x, y);
+		}
 		displayPanel.repaint();
-	}
-
-	@Override
-	public void gameOver(int winner) {
-		displayPanel.repaint();
-		JOptionPane.showMessageDialog(this, "player " + (winner) + " won the game!");
 	}
 }
 

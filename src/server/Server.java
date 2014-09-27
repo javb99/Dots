@@ -280,7 +280,7 @@ public class Server {
 	}
 	public static void main(String[] args) {
 		int boardSizeL = 4;
-		int playersL = 3;
+		int playersL = 1;
 		if (args.length == 3) {
 			boardSizeL = Integer.parseInt(args[0]);
 			playersL = Integer.parseInt(args[1]);
