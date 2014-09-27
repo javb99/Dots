@@ -1,15 +1,14 @@
 package server;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.*;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.channels.*;
-import java.util.*;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.Iterator;
 
 import javax.swing.JOptionPane;
 
@@ -26,7 +25,7 @@ public class Server {
 	public int movesLeft;
 	// server related
 	public boolean gameStarted;
-	public static final int PORT = 1010;
+	public static int PORT = 1025;
 	public Selector selector;
 	public ServerSocketChannel server;
 	public int numberClients;
@@ -210,7 +209,9 @@ public class Server {
 	}
 	
 	private void isGameWon() {
+		
 		int[] playerScores = new int[players + 1];
+		/**
 		// Checks all squares then displays the owner.
 		for (int x = 0; x < boardSquares.length; x++) {
 			for (int y = 0; y < boardSquares[x].length; y++) {
@@ -227,7 +228,7 @@ public class Server {
 			if (playerScores[i] > playerScores[max]) {
 				max = i;
 			}
-		}
+		}**/
 		for (int i = 1; i < playerScores.length; i++) {
 			if (playerScores[i] > (boardSize * boardSize) / (players) ) {
 				notifyEndGame(i);
@@ -279,17 +280,18 @@ public class Server {
 	}
 	public static void main(String[] args) {
 		int boardSizeL = 4;
-		int playersL = 2;
+		int playersL = 3;
 		if (args.length == 3) {
 			boardSizeL = Integer.parseInt(args[0]);
 			playersL = Integer.parseInt(args[1]);
+			PORT = Integer.parseInt(args[2]);
 			
 		}
 		if (playersL >= 6 || boardSizeL > 15){
 			JOptionPane.showMessageDialog(null, "comand-line argument(s) invalid", "Error", JOptionPane.ERROR_MESSAGE);
 			System.exit(1);
 		}else {
-			Server s = new Server(boardSizeL, playersL);
+			new Server(boardSizeL, playersL);
 		}
 	}
 }

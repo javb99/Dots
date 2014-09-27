@@ -3,10 +3,8 @@ package client;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 
 public class ClientNetwork implements Runnable{
 	
@@ -16,7 +14,6 @@ public class ClientNetwork implements Runnable{
 	private Thread runner;
 	public Socket server;
 	private Socket client;
-	private PrintWriter out;
 	// game related
 	private boolean gameStarted;
 	private int[][][] boardLines;
@@ -43,7 +40,7 @@ public class ClientNetwork implements Runnable{
 	public void run() {
 		try {
 			client = new Socket();
-			client.connect(new InetSocketAddress("localhost", 1010));
+			client.connect(new InetSocketAddress("localhost", 1025));
 			BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream()));
 			display.connected();
 			while(true) {
@@ -172,4 +169,9 @@ public class ClientNetwork implements Runnable{
 	public int[][] getBoardSquares() {
 		return boardSquares;
 	}
+	
+	public boolean isGameStarted() {
+		return this.gameStarted;
+	}
+	
 }

@@ -16,6 +16,10 @@ import javax.swing.JPanel;
 // change turns and scoring...........................................
 
 public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	// class variables
 	public static final int Y_AXIS = 1;
 	public static final int X_AXIS = 0;
@@ -65,7 +69,6 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 		int y = click.getY();
 		int X = x / space;
 		int Y = y / space;
-		DrawPanel panel = (DrawPanel) click.getSource();
 		
 		if( (int) x % space <= thickness){
 			clientNetwork.sendLine(clientNetwork.getMyID(), Y_AXIS, X, Y);
@@ -96,7 +99,7 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 			JOptionPane.showMessageDialog(null, "comand-line argument(s) invalid", "Error", JOptionPane.ERROR_MESSAGE);
 			System.exit(ERROR);
 		}
-		HumanDisplay frame = new HumanDisplay(10, thicknessIN, 2);
+		new HumanDisplay(10, thicknessIN, 2);
 	}
 
 	@Override
@@ -159,6 +162,10 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay{
 
 class DrawPanel extends JPanel {
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	private static final int X_AXIS = 0;
 	private static final int Y_AXIS = 1;
 	public static int space;
