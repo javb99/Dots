@@ -285,7 +285,7 @@ public class Server {
 		if (args.length == 3) {
 			boardSizeL = Integer.parseInt(args[0]);
 			playersL = Integer.parseInt(args[1]);
-			PORT = Integer.parseInt(args[2]);
+			Constants.PORT = Integer.parseInt(args[2]);
 			
 		}
 		if (playersL >= 6 || boardSizeL > 15){
