@@ -1,8 +1,7 @@
 package server;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
+import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -11,6 +10,8 @@ import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 
 import javax.swing.JOptionPane;
+
+import utilities.Constants;
 
 public class Server {
 	// gameplay related
@@ -25,7 +26,7 @@ public class Server {
 	public int movesLeft;
 	// server related
 	public boolean gameStarted;
-	public static int PORT = 1025;
+	
 	public Selector selector;
 	public ServerSocketChannel server;
 	public int numberClients;
@@ -38,7 +39,7 @@ public class Server {
 		try { 
 			selector = Selector.open(); 
 			server = ServerSocketChannel.open(); 
-			server.socket().bind(new InetSocketAddress(PORT)); 
+			server.socket().bind(new InetSocketAddress(Constants.PORT)); 
 			server.configureBlocking(false); 
 			server.register(selector, SelectionKey.OP_ACCEPT, "Main accept server"); 
 			while (true) {
@@ -72,7 +73,7 @@ public class Server {
 				}
 			}   		
 		} catch (IOException ioe) {
-			
+			System.out.println(ioe);
 		} finally {
 			try {
 				selector.close();

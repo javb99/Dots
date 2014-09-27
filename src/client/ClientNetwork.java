@@ -6,6 +6,8 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
+import utilities.Constants;
+
 public class ClientNetwork implements Runnable{
 	
 	private static final int X_AXIS = 0;
@@ -40,7 +42,7 @@ public class ClientNetwork implements Runnable{
 	public void run() {
 		try {
 			client = new Socket();
-			client.connect(new InetSocketAddress("localhost", 1025));
+			client.connect(new InetSocketAddress("localhost", Constants.PORT));
 			BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream()));
 			display.connected();
 			while(true) {
