@@ -40,9 +40,9 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 	public HumanDisplay(int boardSizeIn, int thicknessIn, int playersIn, int portIn) {
 		super("Dots And Lines Game");
 		
-		//computerPlayer = new JamesComputer();
-		
 		clientNetwork = new ClientNetwork(this, portIn);
+		
+		computerPlayer = new JamesComputer(clientNetwork);
 		
 		this.thickness = thicknessIn;
 		this.space = thickness * 4;

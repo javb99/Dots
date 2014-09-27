@@ -8,16 +8,15 @@ import java.net.Socket;
 
 import utilities.Constants;
 
-public class ClientNetwork implements Runnable{
+public class ClientNetwork implements Runnable, BoardController {
 	
-	private static final int X_AXIS = 0;
-	private static final int Y_AXIS = 1;
 	// network related
 	private Thread runner;
 	public Socket server;
 	private Socket client;
 	// game related
 	private boolean gameStarted;
+	private int boardSize;
 	private int[][][] boardLines;
 	private int[][] boardSquares;
 	private int[] scores;
@@ -81,7 +80,6 @@ public class ClientNetwork implements Runnable{
 		int y;
 		int axis;
 		int score;
-		int boardSize;
 		
 		try {
 			int length = reader.read();
@@ -97,8 +95,8 @@ public class ClientNetwork implements Runnable{
 				boardSize = Integer.parseInt(commandParams[1]);
 				myID = Integer.parseInt(commandParams[2]);
 				boardLines = new int[2][][];
-				boardLines [X_AXIS] = new int[boardSize][boardSize +2];
-				boardLines [Y_AXIS] = new int[boardSize +2][boardSize];
+				boardLines [Constants.X_AXIS] = new int[boardSize][boardSize +2];
+				boardLines [Constants.Y_AXIS] = new int[boardSize +2][boardSize];
 				boardSquares = new int[boardSize][boardSize];
 				scores = new int[players + 1];
 				player = 0;
@@ -148,21 +146,6 @@ public class ClientNetwork implements Runnable{
 		}
 	}
 	
-	public int getScore(int player) {
-		return scores[player];
-	}
-	
-	public int getMyID() {
-		return myID;
-	}
-	
-	public int getOwnerLine(int axis, int x, int y) {
-		return boardLines[axis][x][y];
-	}
-	
-	public int getOwnerSquare(int x, int y) {
-		return boardSquares[x][y];
-	}
 	
 	public int[][][] getBoardLines() {
 		return boardLines;
@@ -176,4 +159,36 @@ public class ClientNetwork implements Runnable{
 		return this.gameStarted;
 	}
 	
+	// Board Controller Implementation
+
+	public int getScore(int player) {
+		return scores[player];
+	}
+	
+	public int getPlayerNumber() {
+		return myID;
+	}
+	
+	public int getOwnerLine(int axis, int x, int y) {
+		return boardLines[axis][x][y];
+	}
+	
+	public int getOwnerSquare(int x, int y) {
+		return boardSquares[x][y];
+	}
+
+	@Override
+	public int getPlayerCount() {
+		return players;
+	}
+
+	@Override
+	public int getBoardSize() {
+		return boardSize;
+	}
+
+	@Override
+	public void playLine(int axis, int x, int y) {
+		sendLine(axis, x, y);
+	}
 }
