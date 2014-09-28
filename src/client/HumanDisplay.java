@@ -37,12 +37,16 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 	public ClientNetwork clientNetwork;
 	public Player computerPlayer;
 	
-	public HumanDisplay(int boardSizeIn, int thicknessIn, int playersIn, int portIn) {
+	public HumanDisplay(int boardSizeIn, int thicknessIn, int playersIn, int portIn, String computerNameIn) {
 		super("Dots And Lines Game");
 		
 		clientNetwork = new ClientNetwork(this, portIn);
 		
-		computerPlayer = new JamesComputer(clientNetwork);
+		if ( computerNameIn.equals("James")) {
+			computerPlayer = new JamesComputer(clientNetwork);
+		} else if (computerNameIn.equals("Joe")) {
+			computerPlayer = new JoesComputer(clientNetwork);
+		}
 		
 		this.thickness = thicknessIn;
 		this.space = thickness * 4;
@@ -93,15 +97,20 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 	public static void main(String[] args) {
 		int thicknessIN = 16;
 		int portIN = 65001;
-		if (args.length == 2) {
+		String computerNameIN = "human";
+		if (args.length >= 2) {
 			thicknessIN = Integer.parseInt(args[0]);
 			portIN = Integer.parseInt(args[1]);
+		}
+		
+		if (args.length >= 3) {
+			computerNameIN = args[2];
 		}
 		if (thicknessIN > 64 && portIN > 1024 && portIN < 65535 ){
 			JOptionPane.showMessageDialog(null, "comand-line argument(s) invalid", "Error", JOptionPane.ERROR_MESSAGE);
 			System.exit(ERROR);
 		}
-		new HumanDisplay(10, thicknessIN, 2, portIN);
+		new HumanDisplay(10, thicknessIN, 2, portIN, computerNameIN);
 	}
 
 	@Override
