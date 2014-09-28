@@ -79,10 +79,16 @@ public class Server {
 				server.socket().close();
 				server.close();
 			} catch (Exception e) {
-				// do nothing - server failed
+				e.printStackTrace();
 			}
 		}
 	}
+	
+	/**
+	 * Sends the message to the connection plus a char at the front telling how long the message is.
+	 * @param connection: The socket to send the message.
+	 * @param message: The string to send.
+	 */
 	public void send(Socket connection, String message) {
 		try {
 			char lengthChar = (char) message.length();
@@ -93,6 +99,11 @@ public class Server {
 			System.out.println("error: " + e.toString());
 		}
 	}
+	
+	/**
+	 * Loops through the clients that are connected and sends the message to them.
+	 * @param message: The string to send.
+	 */
 	public void send(String message) {
 		for (int i = 0; i < clients.length; i++) {
 			send(clients[i], message);
@@ -133,6 +144,10 @@ public class Server {
 		send("end " + winner);
 	}
 	
+	/**
+	 * Reads from the client specified then processes what it read.
+	 * @param client: The socket to read from.
+	 */
 	public void readInput(Socket client) {
 		System.out.println("reading input");
 		try {
@@ -164,6 +179,7 @@ public class Server {
 					if (!inputMove(axis,x,y,player)) {
 						notifyPlayerTurn(this.player);
 					}
+
 				}
 			} else {
 				System.out.println("message not correct format:" + message + ":end");
@@ -175,7 +191,9 @@ public class Server {
 		}
 	}
 	
-	
+	/**
+	 * Initializes the variables of the board. Then starts game by setting gameStarted to true.
+	 */
 	private void setupGame() {
 		boardLines = new int[2][][];
 		boardLines[X_AXIS] = new int[boardSize][boardSize +2];
@@ -188,6 +206,15 @@ public class Server {
 		gameStarted = true;
 		switchPlayer();
 	}
+	
+	/**
+	 * Tests if it is that player's turn then notifies the clients of the line, squares created by it, that players score, and if the game is over.
+	 * @param axis: The axis of the line that is being set.
+	 * @param x: The X coordinate of the line that is being set.
+	 * @param y: The Y coordinate of the line that is being set.
+	 * @param player: The player id of the player who wants to place the line.
+	 * @return false: if it is not that players turn. true: if it is that players turn.
+	 */
 	public boolean inputMove(int axis, int x, int y, int player){
 		// checks if spot is taken
 		if (boardLines [axis] [x] [y] == 0 && player == this.player) {
@@ -210,10 +237,12 @@ public class Server {
 		}
 	}
 	
+	/**
+	 * Checks if the game has been won.
+	 */
 	private void isGameWon() {
-		
 		int[] playerScores = new int[players + 1];
-		/**
+		/*
 		// Checks all squares then displays the owner.
 		for (int x = 0; x < boardSquares.length; x++) {
 			for (int y = 0; y < boardSquares[x].length; y++) {
@@ -230,15 +259,23 @@ public class Server {
 			if (playerScores[i] > playerScores[max]) {
 				max = i;
 			}
-		}**/
+		}*/
 		for (int i = 1; i < playerScores.length; i++) {
 			if (playerScores[i] > (boardSize * boardSize) / (players) ) {
 				notifyEndGame(i);
 			}
 		}
 	}
-	public void checkSquare(int type, int x, int y, int player) {
-		if (type == X_AXIS) {
+	
+	/**
+	 * Checks all four possible orientations if a square has been finished by this line.
+	 * @param axis: The axis of the line that is being checked from.
+	 * @param x: The X coordinate of the line that is being checked from.
+	 * @param y: The Y coordinate of the line that is being checked from.
+	 * @param player: The player id of the player that placed this line.
+	 */
+	public void checkSquare(int axis, int x, int y, int player) {
+		if (axis == X_AXIS) {
 			// if checking from top
 			if (y < boardSize &&  boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0 && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0) {
 				boardSquares[x] [y] = player;
@@ -254,7 +291,7 @@ public class Server {
 				score[player - 1] += 1;
 			}
 		}
-		if (type == Y_AXIS) {
+		if (axis == Y_AXIS) {
 			// if checking from left
 			if (x < boardSize && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0 && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0) {
 				boardSquares[x] [y] = player;
@@ -271,7 +308,9 @@ public class Server {
 			}
 		}
 	}
-	
+	/**
+	 * Switches who's turn it is then notifies the clients.
+	 */
 	private void switchPlayer() {
 		if (player >= players) {
 			player = 1;
