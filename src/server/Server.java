@@ -238,10 +238,11 @@ public class Server {
 				System.out.println("there is a winner: " + winner);
 				notifyEndGame(winner);
 				winners[gameNumber] = winner;
-				if (gamesToPlay > 0) {
+				if (gameNumber > 0) {
 					++gameNumber;
 					setupGame();
 				} else {
+					System.out.println("session over.");
 					notifyEndSession(getSessionWinner());
 				}
 				return true;
@@ -292,7 +293,7 @@ public class Server {
 				winner = i;
 			}
 		}
-		return winner;
+		return winner +1;
 	}
 	
 	/**
