@@ -6,8 +6,9 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
-import common.Move;
+import javax.swing.JOptionPane;
 
+import common.Move;
 import utilities.Constants;
 
 public class ClientNetwork implements Runnable, BoardController {
@@ -149,7 +150,9 @@ public class ClientNetwork implements Runnable, BoardController {
 			}
 			
 		} catch (IOException e) {
+			JOptionPane.showMessageDialog(null, "server crashed");
 			e.printStackTrace();
+			System.exit(1);
 		}
 	}
 	

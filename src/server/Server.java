@@ -21,7 +21,7 @@ public class Server {
 	public int[][][] boardLines;
 	public int[][] boardSquares;
 	public int[] score;
-	public int players = 2;
+	public int players;
 	public int player;
 	public int movesLeft;
 	// server related
@@ -38,9 +38,7 @@ public class Server {
 		this.boardSize = boardSize;
 		this.players = players;
 		this.gamesToPlay = games;
-		gameNumber = 0;
-		winners = new int[gamesToPlay];
-		clients = new Socket[players];
+		setupSession();
 		try { 
 			selector = Selector.open(); 
 			server = ServerSocketChannel.open(); 
@@ -203,6 +201,15 @@ public class Server {
 	}
 	
 	/**
+	 * Initializes the variables related to a session.
+	 */
+	public void setupSession() {
+		gameNumber = -1;
+		winners = new int[gamesToPlay];
+		clients = new Socket[players];
+	}
+	
+	/**
 	 * Initializes the variables of the board. Then starts game by setting gameStarted to true.
 	 */
 	private void setupGame() {
@@ -212,6 +219,7 @@ public class Server {
 		boardSquares = new int[boardSize][boardSize];
 		score = new int[players];
 		player = 0;
+		++gameNumber;
 		movesLeft = 1;
 		notifyStartGame(players, boardSize);
 		gameStarted = true;
@@ -230,6 +238,7 @@ public class Server {
 		// checks if spot is taken
 		if (boardLines [axis] [x] [y] == 0 && player == this.player) {
 			boardLines [axis] [x] [y] = player;
+			movesLeft -= 1;
 			notifyMove(player, axis, x, y);
 			checkSquare(axis, x, y, player);
 			notifyScore(this.player, score[this.player - 1]);
@@ -238,8 +247,7 @@ public class Server {
 				System.out.println("there is a winner: " + winner);
 				notifyEndGame(winner);
 				winners[gameNumber] = winner;
-				if (gameNumber > 0) {
-					++gameNumber;
+				if (gamesToPlay - (gameNumber+1) > 0) {
 					setupGame();
 				} else {
 					System.out.println("session over.");
@@ -247,7 +255,7 @@ public class Server {
 				}
 				return true;
 			}
-			movesLeft -= 1;
+			
 			if (movesLeft < 1) {
 				switchPlayer();
 				movesLeft = 1;
@@ -270,7 +278,7 @@ public class Server {
 		int totalScore = 0;
 		int max = 0;
 		for (int i = 0; i < score.length; i++) {
-			System.out.println("player " + i + "'s score: " + score[i] + ".");
+			System.out.println("player " + i+1 + "'s score: " + score[i] + ".");
 			totalScore += score[i];
 			if (score[i] >= score[max]) {
 				max = i;
@@ -283,17 +291,17 @@ public class Server {
 	}
 	
 	private int getSessionWinner() {
-		int[] gamesWon = new int[players];
+		int[] gamesWon = new int[players +1];
 		for (int game = 0; game < winners.length; ++game) {
-			++gamesWon[winners[game]];
+			gamesWon[winners[game]] += 1;
 		}
 		int winner = 0;
-		for (int i = 0; i < gamesWon.length; ++i) {
+		for (int i = 1; i < gamesWon.length; ++i) {
 			if (gamesWon[i] >= gamesWon[winner]) {
 				winner = i;
 			}
 		}
-		return winner +1;
+		return winner;
 	}
 	
 	/**
@@ -351,13 +359,12 @@ public class Server {
 	public static void main(String[] args) {
 		int boardSizeL = 4;
 		int playersL = 2;
-		int gamesL = 1;
+		int gamesL = 2;
 		if (args.length == 4) {
 			boardSizeL = Integer.parseInt(args[0]);
 			playersL = Integer.parseInt(args[1]);
 			gamesL = Integer.parseInt(args[2]);
 			Constants.PORT = Integer.parseInt(args[3]);
-			
 		}
 		if (playersL >= 6 || boardSizeL > 15){
 			JOptionPane.showMessageDialog(null, "comand-line argument(s) invalid", "Error", JOptionPane.ERROR_MESSAGE);

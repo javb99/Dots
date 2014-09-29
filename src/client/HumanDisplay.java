@@ -161,6 +161,7 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 	public void sessionOver(int winner) {
 		displayPanel.repaint();
 		JOptionPane.showMessageDialog(this, "player " + (winner) + " has won the session!");
+		System.exit(0);
 	}
 	
 	@Override
