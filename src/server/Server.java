@@ -25,15 +25,21 @@ public class Server {
 	public int player;
 	public int movesLeft;
 	// server related
+	public int gamesToPlay;
+	public int gameNumber;
+	public int[] winners;
 	public boolean gameStarted;
 	public Selector selector;
 	public ServerSocketChannel server;
 	public int numberClients;
 	Socket[] clients;
 	
-	public Server(int boardSize, int players) {
+	public Server(int boardSize, int players, int games) {
 		this.boardSize = boardSize;
 		this.players = players;
+		this.gamesToPlay = games;
+		gameNumber = 0;
+		winners = new int[gamesToPlay];
 		clients = new Socket[players];
 		try { 
 			selector = Selector.open(); 
@@ -144,6 +150,10 @@ public class Server {
 		send("end " + winner);
 	}
 	
+	public void notifyEndSession(int winner) {
+		send("sessionEnd " + winner);
+	}
+	
 	/**
 	 * Reads from the client specified then processes what it read.
 	 * @param client: The socket to read from.
@@ -223,7 +233,19 @@ public class Server {
 			notifyMove(player, axis, x, y);
 			checkSquare(axis, x, y, player);
 			notifyScore(this.player, score[this.player - 1]);
-			isGameWon();
+			int winner = isGameWon();
+			if (winner > 0) {
+				System.out.println("there is a winner: " + winner);
+				notifyEndGame(winner);
+				winners[gameNumber] = winner;
+				if (gamesToPlay > 0) {
+					++gameNumber;
+					setupGame();
+				} else {
+					notifyEndSession(getSessionWinner());
+				}
+				return true;
+			}
 			movesLeft -= 1;
 			if (movesLeft < 1) {
 				switchPlayer();
@@ -241,31 +263,36 @@ public class Server {
 	/**
 	 * Checks if the game has been won.
 	 */
-	private void isGameWon() {
-		int[] playerScores = new int[players + 1];
-		/*
-		// Checks all squares then displays the owner.
-		for (int x = 0; x < boardSquares.length; x++) {
-			for (int y = 0; y < boardSquares[x].length; y++) {
-				playerScores[boardSquares[x][y]] += 1;
-			}
-		}
+	private int isGameWon() {
+		System.out.println("is game won?");
+		System.out.println("score length: " + score.length);
+		int totalScore = 0;
 		int max = 0;
-		for (int i = 1; i < playerScores.length; i++) {
-			if (playerScores[i] > playerScores[max]) {
+		for (int i = 0; i < score.length; i++) {
+			System.out.println("player " + i + "'s score: " + score[i] + ".");
+			totalScore += score[i];
+			if (score[i] >= score[max]) {
 				max = i;
 			}
 		}
-		for (int i = 1; i < playerScores.length; i++) {
-			if (playerScores[i] > playerScores[max]) {
-				max = i;
-			}
-		}*/
-		for (int i = 1; i < playerScores.length; i++) {
-			if (playerScores[i] > (boardSize * boardSize) / (players) ) {
-				notifyEndGame(i);
+		if (totalScore == (boardSize * boardSize)) {
+			return max +1;
+		}
+		return 0;
+	}
+	
+	private int getSessionWinner() {
+		int[] gamesWon = new int[players];
+		for (int game = 0; game < winners.length; ++game) {
+			++gamesWon[winners[game]];
+		}
+		int winner = 0;
+		for (int i = 0; i < gamesWon.length; ++i) {
+			if (gamesWon[i] >= gamesWon[winner]) {
+				winner = i;
 			}
 		}
+		return winner;
 	}
 	
 	/**
@@ -322,18 +349,20 @@ public class Server {
 	}
 	public static void main(String[] args) {
 		int boardSizeL = 4;
-		int playersL = 1;
-		if (args.length == 3) {
+		int playersL = 2;
+		int gamesL = 1;
+		if (args.length == 4) {
 			boardSizeL = Integer.parseInt(args[0]);
 			playersL = Integer.parseInt(args[1]);
-			Constants.PORT = Integer.parseInt(args[2]);
+			gamesL = Integer.parseInt(args[2]);
+			Constants.PORT = Integer.parseInt(args[3]);
 			
 		}
 		if (playersL >= 6 || boardSizeL > 15){
 			JOptionPane.showMessageDialog(null, "comand-line argument(s) invalid", "Error", JOptionPane.ERROR_MESSAGE);
 			System.exit(1);
 		}else {
-			new Server(boardSizeL, playersL);
+			new Server(boardSizeL, playersL, gamesL);
 		}
 	}
 }

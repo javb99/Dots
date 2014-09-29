@@ -21,4 +21,10 @@ public interface IDisplay extends Player {
 	 * @param winner: id of the winning player.
 	 */
 	public void gameOver(int winner);
+	
+	/**
+	 * session over.
+	 * @param winner: id of the winning player.
+	 */
+	public void sessionOver(int winner);
 }

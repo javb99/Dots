@@ -139,6 +139,11 @@ public class ClientNetwork implements Runnable, BoardController {
 				display.gameOver(winner);
 				break;
 				
+			case "sessionEnd": // Notifying of the winner of the session.
+				winner = Integer.parseInt(commandParams[0]);
+				display.sessionOver(winner);
+				break;
+				
 			default:
 				System.out.println("Unrecognized command.");
 			}
