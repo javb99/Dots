@@ -6,6 +6,8 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
+import common.Move;
+
 import utilities.Constants;
 
 public class ClientNetwork implements Runnable, BoardController {
@@ -190,5 +192,9 @@ public class ClientNetwork implements Runnable, BoardController {
 	@Override
 	public void playLine(int axis, int x, int y) {
 		sendLine(axis, x, y);
+	}
+	
+	public void playLine(Move move) {
+		playLine(move.axis, move.point.x, move.point.y);
 	}
 }

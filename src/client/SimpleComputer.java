@@ -36,5 +36,11 @@ public class SimpleComputer extends ComputerPlayer {
 			}
 		}
 	}
+
+	@Override
+	public void square(int player, int x, int y) {
+		// TODO Auto-generated method stub
+		
+	}
 	
 }
