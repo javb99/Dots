@@ -3,6 +3,7 @@ package client;
 import java.awt.Point;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Random;
 
 import utilities.Constants;
 import common.Move;
@@ -29,10 +30,10 @@ public class JoesComputer extends ComputerPlayer{
 			System.out.println("square to finish: " + square);
 			if (square != null) {
 				FinishSquare(square);
-			} else if (canMakeShadowMove()) {
+			} /**else if (canMakeShadowMove()) {
 				makeShadowMove();
-			} else {
-				makeIndexedMove();
+			}**/ else {
+				makeRandomMove();
 			}
 			
 				
@@ -133,6 +134,23 @@ public class JoesComputer extends ComputerPlayer{
 		} else {
 			boardController.playLine(Constants.X_AXIS, latestMove.point.x, latestMove.point.y);
 		}
+	}
+	
+	private void makeRandomMove() {
+		Random random = new Random();
+		int axis;
+		int x;
+		int y;
+		while (true) {
+			axis = random.nextInt(2);
+			x = random.nextInt(axis == Constants.Y_AXIS ? boardSize+1 : boardSize);
+			y = random.nextInt(axis == Constants.X_AXIS ? boardSize+1 : boardSize);
+			if (boardController.getOwnerLine(axis, x, y) == 0) {
+				boardController.playLine(axis, x, y);
+				return;
+			}
+		}
+		
 	}
 	
 	private void makeIndexedMove() {

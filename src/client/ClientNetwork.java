@@ -104,7 +104,12 @@ public class ClientNetwork implements Runnable, BoardController {
 				scores = new int[players + 1];
 				player = 0;
 				gameStarted = true;
-				display.gameStarting(players, boardSize, myID);
+				if (isSpectator()) {
+					display.gameStarting(players, boardSize, myID);
+				} else {
+					display.spectator(players, boardSize);
+				}
+				
 				break;
 				
 			case "turn": // Notifying who's turn it is.
@@ -141,8 +146,11 @@ public class ClientNetwork implements Runnable, BoardController {
 				break;
 				
 			case "sessionEnd": // Notifying of the winner of the session.
-				winner = Integer.parseInt(commandParams[0]);
-				display.sessionOver(winner);
+				int[] scores = new int[commandParams.length];
+				for (int i = 0; i < commandParams.length; i++) {
+					scores[i] = Integer.parseInt(commandParams[i]);
+				}
+				display.sessionOver(scores);
 				break;
 				
 			default:
@@ -150,7 +158,7 @@ public class ClientNetwork implements Runnable, BoardController {
 			}
 			
 		} catch (IOException e) {
-			JOptionPane.showMessageDialog(null, "server crashed");
+			JOptionPane.showMessageDialog(null, "server crashed or is full of players");
 			e.printStackTrace();
 			System.exit(1);
 		}
@@ -169,6 +177,9 @@ public class ClientNetwork implements Runnable, BoardController {
 		return this.gameStarted;
 	}
 	
+	public boolean isSpectator() {
+		return myID > 0;
+	}
 	// Board Controller Implementation
 
 	public int getScore(int player) {

@@ -17,6 +17,13 @@ public interface IDisplay extends Player {
 	public void gameStarting(int numberOfPlayers, int boardSize, int myID);
 	
 	/**
+	 * Called when the game is set up and you are a spectator.
+	 * @param numberOfPlayers: The number of players this game win be played with.
+	 * @param boardSize: The length and width of the board in squares.
+	 */
+	public void spectator(int numberOfPlayers, int boardSize);
+	
+	/**
 	 * game over.
 	 * @param winner: id of the winning player.
 	 */
@@ -24,7 +31,7 @@ public interface IDisplay extends Player {
 	
 	/**
 	 * session over.
-	 * @param winner: id of the winning player.
+	 * @param scores: the scores indexed by player id -1.
 	 */
-	public void sessionOver(int winner);
+	public void sessionOver(int[] scores);
 }

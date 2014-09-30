@@ -117,7 +117,13 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 	public void connected() {
 		System.out.println("connection called");
 	}
-
+	
+	@Override
+	public void spectator(int numberOfPlayers, int boardSize) {
+		JOptionPane.showMessageDialog(this, "You are spectating");
+		computerPlayer = null;
+	}
+	
 	@Override
 	public void gameStarting(int numberOfPlayers, int boardSize, int myID) {
 		System.out.println("game starting called");
@@ -158,9 +164,13 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 	}
 	
 	@Override
-	public void sessionOver(int winner) {
+	public void sessionOver(int[] scores) {
 		displayPanel.repaint();
-		JOptionPane.showMessageDialog(this, "player " + (winner) + " has won the session!");
+		StringBuilder builder = new StringBuilder();
+		for (int player = 0; player < scores.length; player++) {
+			builder.append("player " + (player +1) + " won " + scores[player] + " games.\n");
+		}
+		JOptionPane.showMessageDialog(this, builder.toString());
 		System.exit(0);
 	}
 	

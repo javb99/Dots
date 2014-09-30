@@ -1,12 +1,14 @@
 package server;
 
 import java.io.IOException;
-import java.net.*;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.Iterator;
 
 import javax.swing.JOptionPane;
@@ -32,7 +34,7 @@ public class Server {
 	public Selector selector;
 	public ServerSocketChannel server;
 	public int numberClients;
-	Socket[] clients;
+	ArrayList<Socket> clients;
 	
 	public Server(int boardSize, int players, int games) {
 		this.boardSize = boardSize;
@@ -53,25 +55,28 @@ public class Server {
 					SelectionKey key = iter.next(); 
 					iter.remove(); 
 					if (key.isConnectable()) { 
-						((SocketChannel)key.channel()).finishConnect(); 
-					} 
-					if (key.isAcceptable()) {
-						System.out.println("got connection.");
-						// accept connection 
-						SocketChannel client = server.accept(); 
-						client.configureBlocking(false); 
-						client.socket().setTcpNoDelay(true); 
-						client.register(selector, SelectionKey.OP_READ, numberClients);
-						clients[numberClients] = client.socket();
+						((SocketChannel)key.channel()).finishConnect();
 						
-						if (numberClients + 1 == players) {
-							setupGame();
+					} else if (key.isAcceptable()) {
+						System.out.println("trying to connect.");
+						// accept connection
+						if (!gameStarted) {
+							SocketChannel client = server.accept(); 
+							client.configureBlocking(false); 
+							client.socket().setTcpNoDelay(true); 
+							client.register(selector, SelectionKey.OP_READ, numberClients);
+							clients.add(client.socket());
+							
+							if (numberClients + 1 == players) {
+								setupGame();
+							}
+							numberClients += 1;
+						} else {
+							close(key);
 						}
-						numberClients += 1;
-					} 
-					if (key.isReadable()) { 
-						Socket sock = clients[(int) key.attachment()];
-						readInput(sock);
+						
+					} else if (key.isReadable()) {
+						readInput(key);
 					} 
 				}
 			}   		
@@ -82,7 +87,7 @@ public class Server {
 				selector.close();
 				server.socket().close();
 				server.close();
-			} catch (Exception e) {
+			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
@@ -109,15 +114,24 @@ public class Server {
 	 * @param message: The string to send.
 	 */
 	public void send(String message) {
-		for (int i = 0; i < clients.length; i++) {
-			send(clients[i], message);
+		for (int i = 0; i < clients.size(); i++) {
+			send(clients.get(i), message);
 		}
+	}
+	
+	private void close(SelectionKey key) throws IOException {
+	    key.cancel();
+	    key.channel().close();
 	}
 	
 	public void notifyStartGame(int numPlayers, int boardSize) {
 		//send("start " + numPlayers + "_" + boardSize);
-		for (int i = 0; i < clients.length; i++) {
-			send(clients[i], "start " + numPlayers + "_" + boardSize + "_" + (i + 1));
+		for (int i = 0; i < clients.size(); i++) {
+			int id = i +1;
+			if (i > numberClients) {
+				id = -1;
+			}
+			send(clients.get(i), "start " + numPlayers + "_" + boardSize + "_" + (id));
 		}
 	}
 	
@@ -147,16 +161,33 @@ public class Server {
 	public void notifyEndGame(int winner) {
 		send("end " + winner);
 	}
-	
-	public void notifyEndSession(int winner) {
-		send("sessionEnd " + winner);
+	/**
+	 * Notifies all the clients that the session is over then tells the number of games each player won.
+	 * @param scores should be length players +1
+	 */
+	public void notifyEndSession(int[] scores) {
+		StringBuilder builder = new StringBuilder();
+		for (int player = 1; player < scores.length; player++) {
+			builder.append(scores[player] + "_");
+		}
+		String scoresMessage = builder.toString();
+		send("sessionEnd " + scoresMessage);
 	}
 	
 	/**
 	 * Reads from the client specified then processes what it read.
 	 * @param client: The socket to read from.
+	 * @throws IOException: when reseting sessions.
 	 */
-	public void readInput(Socket client) {
+	public void readInput(SelectionKey key) throws IOException {
+		Socket client = null;
+		try {
+			client = clients.get((int) key.attachment());
+		} catch (IndexOutOfBoundsException ioobe) {
+			close(key);
+			return;
+		}
+			
 		System.out.println("reading input");
 		try {
 			ByteBuffer buff = ByteBuffer.wrap(new byte[1]);
@@ -193,10 +224,16 @@ public class Server {
 				System.out.println("message not correct format:" + message + ":end");
 			}
 			
-		} catch (IOException e) {
-			e.printStackTrace();
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
 			System.out.println("client lost connection.");
 			System.exit(1);
+		} catch (NullPointerException npe) {
+			try {
+				close(key);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 	
@@ -206,7 +243,8 @@ public class Server {
 	public void setupSession() {
 		gameNumber = -1;
 		winners = new int[gamesToPlay];
-		clients = new Socket[players];
+		numberClients = 0;
+		clients = new ArrayList<Socket>();
 	}
 	
 	/**
@@ -244,15 +282,7 @@ public class Server {
 			notifyScore(this.player, score[this.player - 1]);
 			int winner = isGameWon();
 			if (winner > 0) {
-				System.out.println("there is a winner: " + winner);
-				notifyEndGame(winner);
-				winners[gameNumber] = winner;
-				if (gamesToPlay - (gameNumber+1) > 0) {
-					setupGame();
-				} else {
-					System.out.println("session over.");
-					notifyEndSession(getSessionWinner());
-				}
+				gameOver(winner);
 				return true;
 			}
 			
@@ -278,7 +308,7 @@ public class Server {
 		int totalScore = 0;
 		int max = 0;
 		for (int i = 0; i < score.length; i++) {
-			System.out.println("player " + i+1 + "'s score: " + score[i] + ".");
+			System.out.println("player " + (i+1) + "'s score: " + score[i] + ".");
 			totalScore += score[i];
 			if (score[i] >= score[max]) {
 				max = i;
@@ -290,7 +320,21 @@ public class Server {
 		return 0;
 	}
 	
-	private int getSessionWinner() {
+	private void gameOver(int winner) {
+		System.out.println("there is a winner: " + winner);
+		notifyEndGame(winner);
+		winners[gameNumber] = winner;
+		if (gamesToPlay - (gameNumber+1) > 0) {
+			setupGame();
+		} else {
+			System.out.println("session over.");
+			notifyEndSession(getSessionScores());
+			setupSession();
+			gameStarted = false;
+		}
+	}
+	
+	private int[] getSessionScores() {
 		int[] gamesWon = new int[players +1];
 		for (int game = 0; game < winners.length; ++game) {
 			gamesWon[winners[game]] += 1;
@@ -301,7 +345,7 @@ public class Server {
 				winner = i;
 			}
 		}
-		return winner;
+		return gamesWon;
 	}
 	
 	/**
