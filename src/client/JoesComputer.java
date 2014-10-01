@@ -6,11 +6,14 @@ import java.util.Iterator;
 import java.util.Random;
 
 import utilities.Constants;
+import common.JoesMove;
 import common.Move;
 
 public class JoesComputer extends ComputerPlayer{
 	
 	private int boardSize;
+	private int[][][] boardLines;
+	private int[][] boardSquares;
 	
 	Move latestMove;
 	
@@ -26,23 +29,27 @@ public class JoesComputer extends ComputerPlayer{
 				e.printStackTrace();
 			}
 			// If here then it is my turn.
-			Point square = canFinishSquare();
-			System.out.println("square to finish: " + square);
-			if (square != null) {
-				FinishSquare(square);
-			} /**else if (canMakeShadowMove()) {
-				makeShadowMove();
-			}**/ else {
-				makeRandomMove();
-			}
-			
-				
-				
-			
+			JoesMove line = finishSquareMove();
+			//System.out.println("The hops: " + line.hops.toString());
+			playLine(line);
 		}
 	}
+	/**
+	 * @param square: the square to check from.
+	 * @returns the number of line of the square specified that are owned.
+	 */
+	private int getCount(Point square) {
+		int count = 0;
+		ArrayList<Move> lines = getLines(square);
+		for (Iterator<Move> lineIterator = lines.iterator(); lineIterator.hasNext();) {
+			Move line = lineIterator.next();
+			if (getOwnerLine(line) > 0) {
+				++count;
+			}
+		}
+		return count;
+	}
 	
-	@SuppressWarnings("unused")
 	private ArrayList<Point> getSquares(Move line) {
 		ArrayList<Point> list = new ArrayList<Point>();
 		int axis = line.axis;
@@ -81,35 +88,83 @@ public class JoesComputer extends ComputerPlayer{
 		return list;
 	}
 	
-	private Point canFinishSquare() {
+	private void playLine(Move line) {
+		boardController.playLine(line.axis, line.point.x, line.point.y);
+	}
+	
+	private int getOwnerLine(Move line) {
+		return boardController.getOwnerLine(line.axis, line.point.x, line.point.y);
+	}
+	
+	private void createBoardCopy() {
+		boardLines = boardController.getBoardLinesCopy();
+		boardSquares = boardController.getBoardSquaresCopy();
+	}
+	
+	private JoesMove finishSquareMove() {
 		for(int x = 0; x < boardSize; ++x) {
 		    for(int y = 0; y < boardSize; ++y) {
 				Point square = new Point(x, y);
-				ArrayList<Move> lines = getLines(square);
-				
-				int count = 0;
-				for (Iterator<Move> lineIterator = lines.iterator(); lineIterator.hasNext();) {
-					Move line = lineIterator.next();
-					if (line.score > 0) {
-						++count;
+				if (boardController.getOwnerSquare(x, y) == 0) { // square is not owned.
+					ArrayList<Move> lines = getLines(square);
+					
+					JoesMove finishLine = new JoesMove(0,0,0, "error"); // default value will never be used if set up correctly.
+					int count = 0;
+					for (Iterator<Move> lineIterator = lines.iterator(); lineIterator.hasNext();) {
+						JoesMove line = new JoesMove(lineIterator.next(), "Square");
+						
+						if (getOwnerLine(line) > 0) { // line is owned.
+							++count;
+						} else if (getOwnerLine(line) == 0) {
+							finishLine = line;
+						}
+						
+						if (count == 3) { // because there are three lines already taken and the square is not owned this square can be finished.
+							if (getOwnerLine(finishLine) == 0) {
+								return finishLine;
+							}
+						}
 					}
 				}
-				if (count == 3) {
-					return square;
-				}					
 		    }
 		}
-		return null;
+		return dontMakeStupidMove().addHop("Square");
 	}
-	
-	private void FinishSquare(Point square) {
-		System.out.println("square to finish: " + square);
-		ArrayList<Move> lines = getLines(square);
-		for (Iterator<Move> lineIterator = lines.iterator(); lineIterator.hasNext();) {
-			Move line = lineIterator.next();
-			if (line.score == 0) {
-				boardController.playLine(line.axis, line.point.x, line.point.y);
+
+	private JoesMove dontMakeStupidMove() {
+		ArrayList<Move> whitelist = new ArrayList<Move>();
+		ArrayList<Move> blacklist = new ArrayList<Move>();
+		
+		for(int axis=Constants.X_AXIS; axis<=Constants.Y_AXIS; ++axis) {
+			int xSize = axis == Constants.Y_AXIS ? boardSize+1 : boardSize;
+			for(int x=0; x<xSize; ++x) {
+				int ySize = axis == Constants.X_AXIS ? boardSize+1 : boardSize;
+				for(int y=0; y<ySize; ++y) {
+					Move line = new Move(axis, x, y);
+					int owner = boardController.getOwnerLine(axis, x, y);
+					if(owner == 0) { // line is not owned
+						
+						ArrayList<Point> squares = getSquares(new Move(axis, x, y));
+						for (Iterator<Point> squareIterator = squares.iterator(); squareIterator.hasNext();) {
+							Point square = squareIterator.next();
+							if (getCount(square) == 2) {
+								blacklist.add(line);
+							}
+						}
+						if (!blacklist.contains(line)) {
+							whitelist.add(line);
+						}
+					}
+				}
 			}
+		}
+		
+		if (whitelist.isEmpty() && !blacklist.isEmpty()) {
+			//System.out.println("blacklist.");
+			return makeRandomMove(blacklist).addHop("Stupid");
+		} else {
+			//System.out.println("whitelist.");
+			return makeRandomMove(whitelist).addHop("Stupid");
 		}
 	}
 	
@@ -136,7 +191,13 @@ public class JoesComputer extends ComputerPlayer{
 		}
 	}
 	
-	private void makeRandomMove() {
+	private JoesMove makeRandomMove(ArrayList<Move> list) {
+		Random random = new Random();
+		//System.out.println("list size." + list.size());
+		return new JoesMove(list.get(random.nextInt(list.size())), "Random");
+	}
+	
+	private JoesMove makeRandomMove() {
 		Random random = new Random();
 		int axis;
 		int x;
@@ -146,32 +207,19 @@ public class JoesComputer extends ComputerPlayer{
 			x = random.nextInt(axis == Constants.Y_AXIS ? boardSize+1 : boardSize);
 			y = random.nextInt(axis == Constants.X_AXIS ? boardSize+1 : boardSize);
 			if (boardController.getOwnerLine(axis, x, y) == 0) {
-				boardController.playLine(axis, x, y);
-				return;
+				return new JoesMove(axis, x, y, "Random");
 			}
 		}
 		
 	}
-	
-	private void makeIndexedMove() {
-		for(int axis = Constants.X_AXIS; axis <= Constants.Y_AXIS; ++axis) {
-			int xSize = axis == Constants.Y_AXIS ? boardSize+1 : boardSize;
-			for(int x = 0; x < xSize; ++x) {
-				int ySize = axis == Constants.X_AXIS ? boardSize+1 : boardSize;
-			    for(int y = 0; y < ySize; ++y) {
-			    	if (boardController.getOwnerLine(axis, x, y) == 0) {
-						boardController.playLine(axis, x, y);
-						return;
-					}
-			    }
-			}
-		}
-	}
 
 	@Override
 	public void move(int player, int axis, int x, int y) {
-		 latestMove = new Move(axis, x, y, player);
-		 this.boardSize = boardController.getBoardSize();
+		this.boardSize = boardController.getBoardSize();
+		createBoardCopy();
+		latestMove = new Move(axis, x, y, player);
+		
+
 	}
 
 	@Override

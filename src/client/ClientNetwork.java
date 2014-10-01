@@ -71,7 +71,7 @@ public class ClientNetwork implements Runnable, BoardController {
 			char lengthChar = (char) message.length();
 			String command = lengthChar + message;
 			connection.getOutputStream().write(command.getBytes());
-			System.out.write(command.getBytes());
+			//System.out.write(command.getBytes());
 		} catch (Exception e) {
 			System.out.println("error: " + e.toString());
 		}
@@ -165,13 +165,7 @@ public class ClientNetwork implements Runnable, BoardController {
 	}
 	
 	
-	public int[][][] getBoardLines() {
-		return boardLines;
-	}
 	
-	public int[][] getBoardSquares() {
-		return boardSquares;
-	}
 	
 	public boolean isGameStarted() {
 		return this.gameStarted;
@@ -213,7 +207,15 @@ public class ClientNetwork implements Runnable, BoardController {
 		sendLine(axis, x, y);
 	}
 	
-	public void playLine(Move move) {
-		playLine(move.axis, move.point.x, move.point.y);
+	@Override
+	public int[][][] getBoardLinesCopy() {
+		return boardLines.clone();
 	}
+	
+	@Override
+	public int[][] getBoardSquaresCopy() {
+		return boardSquares.clone();
+	}
+	
+	
 }
