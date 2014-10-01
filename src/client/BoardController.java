@@ -23,6 +23,16 @@ public interface BoardController {
 	public int getBoardSize();
 	
 	/*
+	 * Returns a copy of BoardLines.
+	 */
+	public int[][][] getBoardLinesCopy();
+	
+	/*
+	 * Returns a copy of BoardSquares.
+	 */
+	public int[][] getBoardSquaresCopy();
+	
+	/*
 	 * Returns the owner of the given line on the given axis.
 	 */
 	public int getOwnerLine(int axis, int x, int y);
