@@ -32,7 +32,7 @@ public class ClientNetwork implements Runnable, BoardController {
 	
 	
 	
-	public ClientNetwork(IDisplay display, int port) {
+	public ClientNetwork(IDisplay display, int port) { // todo not using port passed in.
 		if (runner == null) {
 			runner = new Thread(this);
 			runner.start();
@@ -46,7 +46,6 @@ public class ClientNetwork implements Runnable, BoardController {
 			client = new Socket();
 			client.connect(new InetSocketAddress(Constants.IP, Constants.PORT));
 			BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream()));
-			display.connected();
 			while(true) {
 				readInput(input);
 			}
@@ -93,23 +92,22 @@ public class ClientNetwork implements Runnable, BoardController {
 			String[] commandParams = commands[1].split("_");
 
 			switch(commands[0]) {
-			case "start": // Notifying that the game is starting.
+			case "connection":
 				players = Integer.parseInt(commandParams[0]);
 				boardSize = Integer.parseInt(commandParams[1]);
-				myID = Integer.parseInt(commandParams[2]);
 				boardLines = new int[2][][];
 				boardLines [Constants.X_AXIS] = new int[boardSize][boardSize +2];
 				boardLines [Constants.Y_AXIS] = new int[boardSize +2][boardSize];
 				boardSquares = new int[boardSize][boardSize];
 				scores = new int[players + 1];
+				display.connected(players, boardSize);
+				break;
+				
+			case "start": // Notifying that the game is starting.
+				myID = Integer.parseInt(commandParams[0]);				
 				player = 0;
 				gameStarted = true;
-				if (isSpectator()) {
-					display.gameStarting(players, boardSize, myID);
-				} else {
-					display.spectator(players, boardSize);
-				}
-				
+				display.gameStarting(myID);
 				break;
 				
 			case "turn": // Notifying who's turn it is.

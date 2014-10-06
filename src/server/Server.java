@@ -71,6 +71,7 @@ public class Server {
 								setupGame();
 							}
 							numberClients += 1;
+							notifyConnectionFinnished(client.socket(), players, boardSize);
 						} else {
 							close(key);
 						}
@@ -124,15 +125,19 @@ public class Server {
 	    key.channel().close();
 	}
 	
-	public void notifyStartGame(int numPlayers, int boardSize) {
+	public void notifyStartGame() {
 		//send("start " + numPlayers + "_" + boardSize);
 		for (int i = 0; i < clients.size(); i++) {
 			int id = i +1;
 			if (i > numberClients) {
 				id = -1;
 			}
-			send(clients.get(i), "start " + numPlayers + "_" + boardSize + "_" + (id));
+			send(clients.get(i), "start "  + (id));
 		}
+	}
+	
+	public void notifyConnectionFinnished(Socket client, int numPlayers, int boardSize) {
+		send(client, "connection " + numPlayers + "_" + boardSize);
 	}
 	
 	public void notifyPlayerTurn(int playerID) {
@@ -225,9 +230,9 @@ public class Server {
 			}
 			
 		} catch (IOException ioe) {
-			ioe.printStackTrace();
 			System.out.println("client lost connection.");
-			System.exit(1);
+			sessionOver(score);
+			
 		} catch (NullPointerException npe) {
 			try {
 				close(key);
@@ -259,7 +264,7 @@ public class Server {
 		player = 0;
 		++gameNumber;
 		movesLeft = 1;
-		notifyStartGame(players, boardSize);
+		notifyStartGame();
 		gameStarted = true;
 		switchPlayer();
 	}
@@ -327,11 +332,15 @@ public class Server {
 		if (gamesToPlay - (gameNumber+1) > 0) {
 			setupGame();
 		} else {
-			System.out.println("session over.");
-			notifyEndSession(getSessionScores());
-			setupSession();
-			gameStarted = false;
+			sessionOver(getSessionScores());
 		}
+	}
+	
+	private void sessionOver(int[] sessionScores) {
+		System.out.println("session over.");
+		notifyEndSession(sessionScores);
+		setupSession();
+		gameStarted = false;
 	}
 	
 	private int[] getSessionScores() {

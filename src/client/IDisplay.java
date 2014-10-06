@@ -5,7 +5,7 @@ public interface IDisplay extends Player {
 	/**
 	 * Called directly after connection to the server is made.
 	 */
-	public void connected();
+	public void connected(int numberOfPlayers, int boardSize);
 	
 	/**
 	 * Called when the game is set up and ready to go.
@@ -14,7 +14,7 @@ public interface IDisplay extends Player {
 	 * @param boardSize: The length and width of the board in squares.
 	 * @param myID: Your unique player id.
 	 */
-	public void gameStarting(int numberOfPlayers, int boardSize, int myID);
+	public void gameStarting(int myID);
 	
 	/**
 	 * Called when the game is set up and you are a spectator.

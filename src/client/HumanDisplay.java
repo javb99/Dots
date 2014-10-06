@@ -1,21 +1,27 @@
 package client;
 
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 
+import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
+import utilities.Constants;
+
 // change turns and scoring...........................................
 
-public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
+public class HumanDisplay extends JFrame implements ActionListener, MouseListener, IDisplay {
 	/**
 	 * 
 	 */
@@ -31,40 +37,97 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 	public static final Color[] colors = new Color[] {Color.white, Color.red, Color.blue, Color.green, Color.orange, Color.pink, Color.cyan};
 	
 	// instance variables
+	
+	//  non gui related.
+	public int port;
+	public String computerName;
+	//  gui related.
+	public CardLayout cardLayout;
+	public JPanel mainPanel;
+	//   Title screen related.
+	public JPanel titleScreenPanel;
+	public JButton startButton;
+	public JLabel connectingLabel;
+	//   Board screen related.
+	public JPanel boardPanel;
 	public JLabel[] scoreLabels;
 	public JLabel turnLabel;
+	public JPanel scorePanel;
 	public DrawPanel displayPanel;
+	
 	public ClientNetwork clientNetwork;
 	public Player computerPlayer;
 	
-	public HumanDisplay(int boardSizeIn, int thicknessIn, int playersIn, int portIn, String computerNameIn) {
+	public HumanDisplay(int boardSizeIn, int thicknessIn, int playersIn, int port, String computerNameIn) {
 		super("Dots And Lines Game");
 		
-		clientNetwork = new ClientNetwork(this, portIn);
-		
-		if ( computerNameIn.equals("James")) {
-			computerPlayer = new JamesComputer(clientNetwork);
-		} else if (computerNameIn.equals("Joe")) {
-			computerPlayer = new JoesComputer(clientNetwork);
-		}
+		this.port = port;
+		this.computerName = computerNameIn;
 		
 		this.thickness = thicknessIn;
 		this.space = thickness * 4;
 		
+		
+		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		// board card
 		displayPanel = new DrawPanel(this);
-		JPanel scorePanel = new JPanel();
+		scorePanel = new JPanel();
 		turnLabel = new JLabel();
 		scorePanel.add(turnLabel);
 		
-		JPanel panel = new JPanel();
-		BorderLayout box = new BorderLayout();
-		panel.setLayout(box);
-		panel.add(scorePanel, BorderLayout.NORTH);
-		panel.add(displayPanel, BorderLayout.CENTER);
-		add(panel);
+		boardPanel = new JPanel();
+		BorderLayout border = new BorderLayout();
+		boardPanel.setLayout(border);
+		boardPanel.add(scorePanel, BorderLayout.NORTH);
+		boardPanel.add(displayPanel, BorderLayout.CENTER);
 		displayPanel.addMouseListener(this);
+		
+		// title screen card
+		titleScreenPanel = new JPanel();
+		startButton = new JButton("Start Session.");
+		startButton.addActionListener(this);
+		connectingLabel = new JLabel("Connecting...");
+		titleScreenPanel.add(startButton);
+		titleScreenPanel.add(connectingLabel);
+		
+		// combination
+		cardLayout = new CardLayout();
+		mainPanel = new JPanel(cardLayout);
+		mainPanel.add(titleScreenPanel, Constants.TITLE_CARD_NAME);
+		mainPanel.add(boardPanel, Constants.BOARD_CARD_NAME);
+	    backToTitleMenu();
+
+		add(mainPanel);
+		this.setVisible(true);
+	}
+	
+	@Override
+	public void actionPerformed(ActionEvent action) {
+		startButtonPressed();
+		if (action.getSource() == startButton) {
+			
+		}
+		
+	}
+	
+	public void startButtonPressed() {
+		System.out.println("Start Button Pressed.");
+		connectingLabel.setVisible(true);
+		clientNetwork = new ClientNetwork(this, port);
+		if ( computerName.equals("James")) {
+			computerPlayer = new JamesComputer(clientNetwork);
+		} else if (computerName.equals("Joe")) {
+			computerPlayer = new JoesComputer(clientNetwork);
+		}
+		
 	}
 
+	public void backToTitleMenu() {
+		cardLayout.show(mainPanel, Constants.TITLE_CARD_NAME);
+		this.setSize(100, 100);
+		connectingLabel.setVisible(false);
+	}
+	
 	@Override
 	public void mouseClicked(MouseEvent click) {
 		
@@ -114,8 +177,23 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 	}
 
 	@Override
-	public void connected() {
+	public void connected(int numberOfPlayers, int boardSize) {
 		System.out.println("connection called");
+		this.boardSize = boardSize;
+		this.players = numberOfPlayers;
+		if (scorePanel.getComponentCount() > 1) {
+			for (int i = 0; i < scoreLabels.length; i++) {
+				scorePanel.remove(scoreLabels[i]);
+			}
+		}
+		scoreLabels = new JLabel[players];
+		for (int i = 0; i < scoreLabels.length; i++) {
+			scoreLabels[i] = new JLabel(Integer.toString(clientNetwork.getScore(i)));
+			scoreLabels[i].setForeground(colors[i+1]);
+			scoreLabels[i].setVisible(true);
+			scorePanel.add(scoreLabels[i]);
+		}
+		
 	}
 	
 	@Override
@@ -125,33 +203,13 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 	}
 	
 	@Override
-	public void gameStarting(int numberOfPlayers, int boardSize, int myID) {
+	public void gameStarting(int myID) {
 		// non gui
-		this.boardSize = boardSize;
 		System.out.println("my id: " + myID);
 		// gui
+		cardLayout.next(mainPanel);
 		setSize( (boardSize * space) + thickness * 2, (boardSize * space) + thickness + space );
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		displayPanel = new DrawPanel(this);
-		JPanel scorePanel = new JPanel();
-		turnLabel = new JLabel();
-		scorePanel.add(turnLabel);
-		scoreLabels = new JLabel[numberOfPlayers];
-		for (int i = 0; i < scoreLabels.length; i++) {
-			scoreLabels[i] = new JLabel(Integer.toString(clientNetwork.getScore(i)));
-			scoreLabels[i].setForeground(colors[i+1]);
-			scoreLabels[i].setVisible(true);
-			scorePanel.add(scoreLabels[i]);
-		}
-		JPanel panel = new JPanel();
-		BorderLayout box = new BorderLayout();
-		panel.setLayout(box);
-		panel.add(scorePanel, BorderLayout.NORTH);
-		panel.add(displayPanel, BorderLayout.CENTER);
-		add(panel);
-		displayPanel.addMouseListener(this);
 		
-		this.setVisible(true);
 	}
 
 	@Override
@@ -170,7 +228,7 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 			builder.append("player " + (player +1) + " won " + scores[player] + " games.\n");
 		}
 		JOptionPane.showMessageDialog(this, builder.toString());
-		System.exit(0);
+		backToTitleMenu();
 	}
 	
 	@Override
@@ -197,6 +255,7 @@ public class HumanDisplay extends JFrame implements MouseListener, IDisplay {
 		}
 		displayPanel.repaint();
 	}
+
 }
 
 class DrawPanel extends JPanel {
@@ -227,10 +286,15 @@ class DrawPanel extends JPanel {
 		comp2D.setColor(Color.BLACK);
 		
 		// update score labels.
-		for (int i = 0; i < parent.clientNetwork.getPlayerNumber(); i++) {
-			parent.scoreLabels[i].setText(Integer.toString(parent.clientNetwork.getScore(i +1)));
-			//System.out.println(parent.clientNetwork.getScore(i));
+		for (int i = 0; i < parent.clientNetwork.getPlayerCount(); i++) {
+			try {
+				parent.scoreLabels[i].setText(Integer.toString(parent.clientNetwork.getScore(i +1)));
+			} catch (NullPointerException npe) {
+				System.out.println("scores not ititalised yet.");
+			}
+			
 		}
+		
 		// Draws dots.
 		for (int x = 0; x < parent.clientNetwork.getBoardSize()+1; x++) {
 			for (int y = 0; y < parent.clientNetwork.getBoardSize()+1; y++) {
