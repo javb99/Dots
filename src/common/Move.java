@@ -26,4 +26,15 @@ public class Move {
 	public Move(int axis, Point point) {
 		this(axis, point, 0);
 	}
+	
+	@Override
+	public boolean equals(Object object) {
+		if (object instanceof Move) {
+			Move move = (Move) object;
+			return move.axis == this.axis && move.point.equals(this.point) && move.score == this.score;
+		} else {
+			return false;
+		}
+		
+	}
 }

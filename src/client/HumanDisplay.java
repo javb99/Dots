@@ -11,6 +11,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -52,6 +53,7 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 	public JPanel boardPanel;
 	public JLabel[] scoreLabels;
 	public JLabel turnLabel;
+	public JButton redrawButton;
 	public JPanel scorePanel;
 	public DrawPanel displayPanel;
 	
@@ -59,7 +61,7 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 	public Player computerPlayer;
 	
 	public HumanDisplay(int boardSizeIn, int thicknessIn, int playersIn, int port, String computerNameIn) {
-		super("Dots And Lines Game");
+		super("Dots And Lines Game client: " + computerNameIn);
 		
 		this.port = port;
 		this.computerName = computerNameIn;
@@ -84,9 +86,12 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 		
 		// title screen card
 		titleScreenPanel = new JPanel();
+		JLabel logo = new JLabel(new ImageIcon("assets\\TitleScreenLogo.png"));
 		startButton = new JButton("Start Session.");
 		startButton.addActionListener(this);
-		connectingLabel = new JLabel("Connecting...");
+		connectingLabel = new JLabel();
+		changeConnectionStatus(null);
+		titleScreenPanel.add(logo);
 		titleScreenPanel.add(startButton);
 		titleScreenPanel.add(connectingLabel);
 		
@@ -99,32 +104,44 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 
 		add(mainPanel);
 		this.setVisible(true);
+		
+		
 	}
 	
 	@Override
 	public void actionPerformed(ActionEvent action) {
-		startButtonPressed();
-		if (action.getSource() == startButton) {
-			
+		if (action.getSource().equals(startButton)) {
+			startButtonPressed();
 		}
-		
 	}
 	
 	public void startButtonPressed() {
 		System.out.println("Start Button Pressed.");
-		connectingLabel.setVisible(true);
+		changeConnectionStatus(null);
 		clientNetwork = new ClientNetwork(this, port);
 		if ( computerName.equals("James")) {
 			computerPlayer = new JamesComputer(clientNetwork);
 		} else if (computerName.equals("Joe")) {
 			computerPlayer = new JoesComputer(clientNetwork);
 		}
+		if (computerPlayer == null) {
+			computerName = JOptionPane.showInputDialog(this, "What would you like your name to be?");
+		}
+	}
+	
+	public void changeConnectionStatus(String status) {
+		if (status != null) {
+			connectingLabel.setText(status);
+		} else {
+			connectingLabel.setVisible(true);
+			connectingLabel.setText("Connecting...");
+		}
 		
 	}
 
 	public void backToTitleMenu() {
 		cardLayout.show(mainPanel, Constants.TITLE_CARD_NAME);
-		this.setSize(100, 100);
+		this.setSize(160, 160);
 		connectingLabel.setVisible(false);
 	}
 	
@@ -138,10 +155,10 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 			int X = x / space;
 			int Y = y / space;
 			
-			if( (int) x % space <= thickness){
+			if( (int) x % space <= thickness && (int) y % space > thickness){
 				clientNetwork.sendLine(Y_AXIS, X, Y);
 				//System.out.println("clicked on the Y");
-			} else if ( (int) y % space <= thickness) {
+			} else if ( (int) y % space <= thickness && (int) x % space > thickness) {
 				clientNetwork.sendLine(X_AXIS, X, Y);
 				//System.out.println("clicked on the X");
 			}	
@@ -178,10 +195,11 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 
 	@Override
 	public void connected(int numberOfPlayers, int boardSize) {
+		changeConnectionStatus("Waiting for \nmore players...");
 		System.out.println("connection called");
 		this.boardSize = boardSize;
 		this.players = numberOfPlayers;
-		if (scorePanel.getComponentCount() > 1) {
+		if (scorePanel.getComponentCount() > 2) {
 			for (int i = 0; i < scoreLabels.length; i++) {
 				scorePanel.remove(scoreLabels[i]);
 			}
@@ -193,7 +211,6 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 			scoreLabels[i].setVisible(true);
 			scorePanel.add(scoreLabels[i]);
 		}
-		
 	}
 	
 	@Override
@@ -204,12 +221,10 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 	
 	@Override
 	public void gameStarting(int myID) {
-		// non gui
-		System.out.println("my id: " + myID);
+		clientNetwork.setName(computerName);
 		// gui
-		cardLayout.next(mainPanel);
+		cardLayout.show(mainPanel, Constants.BOARD_CARD_NAME);
 		setSize( (boardSize * space) + thickness * 2, (boardSize * space) + thickness + space );
-		
 	}
 
 	@Override
@@ -223,9 +238,17 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 	@Override
 	public void sessionOver(int[] scores) {
 		displayPanel.repaint();
+		String playerName;
 		StringBuilder builder = new StringBuilder();
 		for (int player = 0; player < scores.length; player++) {
-			builder.append("player " + (player +1) + " won " + scores[player] + " games.\n");
+			playerName = clientNetwork.getPlayerName(player+1);
+			if (player+1 == clientNetwork.getPlayerNumber()) {
+				builder.append("You won " + scores[player] + " games.\n");
+			} else if (playerName.length() > 0) {
+				builder.append(playerName + " won " + scores[player] + " games.\n");
+			} else {
+				builder.append("Player " + (player +1) + " won " + scores[player] + " games.\n");
+			} 
 		}
 		JOptionPane.showMessageDialog(this, builder.toString());
 		backToTitleMenu();
@@ -234,7 +257,14 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 	@Override
 	public void turn(int player) {
 		turnLabel.setForeground(colors[player]);
-		turnLabel.setText(player + "'s turn.");
+		String playerName = clientNetwork.getPlayerName(player);
+		if (player == clientNetwork.getPlayerNumber()) {
+			turnLabel.setText("Your turn.");
+		}else if (playerName.length() > 0) {
+			turnLabel.setText(playerName + "'s turn.");
+		} else {
+			turnLabel.setText(player + "'s turn.");
+		}
 		if(computerPlayer != null) {
 			computerPlayer.turn(player);
 		}
@@ -259,10 +289,6 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 }
 
 class DrawPanel extends JPanel {
-	
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 1L;
 	private static final int X_AXIS = 0;
 	private static final int Y_AXIS = 1;
@@ -278,6 +304,7 @@ class DrawPanel extends JPanel {
 		thickness = parent.thickness;
 		lineLength = space - thickness;
 	}
+	
 	@Override
 	public void paintComponent(Graphics comp) {
 		super.paintComponent(comp);

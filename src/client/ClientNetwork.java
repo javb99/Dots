@@ -5,10 +5,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.ArrayList;
 
 import javax.swing.JOptionPane;
 
-import common.Move;
 import utilities.Constants;
 
 public class ClientNetwork implements Runnable, BoardController {
@@ -27,6 +27,7 @@ public class ClientNetwork implements Runnable, BoardController {
 	private int players;
 	private int player;
 	private int myID;
+	private ArrayList<String> clientNames;
 	// display related
 	public IDisplay display;
 	
@@ -61,22 +62,34 @@ public class ClientNetwork implements Runnable, BoardController {
 	}
 	// use this to send moves to server.
 	public void sendLine(int axis, int x, int y) {
-		//out.println("line " + player + "_" + axis + "_" + x + "_" + y);
 		send(client, "line " + myID + "_" + axis + "_" + x + "_" + y);
+	}
+	
+	// use this to send name changes to server.
+	public void sendNameChange(String name) {
+		send(client, "name " + myID + "_" + name);
 	}
 	
 	public void send(Socket connection, String message) {
 		try {
-			char lengthChar = (char) message.length();
-			String command = lengthChar + message;
-			connection.getOutputStream().write(command.getBytes());
-			//System.out.write(command.getBytes());
+			/**byte[] lengthBytes = NetworkHelper.intToByteArray(message.length());
+			System.out.println("length bytes going out: " + message.length());
+			ByteBuffer messageBytes = ByteBuffer.wrap(message.getBytes());
+			connection.getChannel().write(ByteBuffer.wrap(lengthBytes));
+			connection.getChannel().write(messageBytes);**/
+			
+			char lengthChar = (char) message.length(); 
+			String command = lengthChar + message; 
+			connection.getOutputStream().write(command.getBytes()); 
+
+			
 		} catch (Exception e) {
-			System.out.println("error: " + e.toString());
+			e.printStackTrace();;
 		}
 	}
 	
 	private void readInput(BufferedReader reader) {
+		String playerName;
 		int player;
 		int x;
 		int y;
@@ -88,23 +101,36 @@ public class ClientNetwork implements Runnable, BoardController {
 			char[] message = new char[length];
 			reader.read(message);
 			String line = new String(message);
+			
+			System.out.println("command: " + line + ". length char:" + length);
+			if ( line.length() < 3) {
+				System.out.println("command not long enough.");
+			}
 			String[] commands = line.split(" ");
 			String[] commandParams = commands[1].split("_");
-
+			
 			switch(commands[0]) {
 			case "connection":
 				players = Integer.parseInt(commandParams[0]);
 				boardSize = Integer.parseInt(commandParams[1]);
-				boardLines = new int[2][][];
-				boardLines [Constants.X_AXIS] = new int[boardSize][boardSize +2];
-				boardLines [Constants.Y_AXIS] = new int[boardSize +2][boardSize];
-				boardSquares = new int[boardSize][boardSize];
-				scores = new int[players + 1];
+				clientNames = new ArrayList<String>();
+				for (int i = 0; i < players+1; ++i) {
+					clientNames.add("");
+				}
+				setupGame();
 				display.connected(players, boardSize);
 				break;
 				
+			case "name": // Notifying that there is a name now registered with this number.
+				player = Integer.parseInt(commandParams[0]);
+				playerName = commandParams[1];
+				clientNames.set(player, playerName);
+				System.out.println("player name changed to: " + playerName);
+				break;
+				
 			case "start": // Notifying that the game is starting.
-				myID = Integer.parseInt(commandParams[0]);				
+				myID = Integer.parseInt(commandParams[0]);
+				setupGame();
 				player = 0;
 				gameStarted = true;
 				display.gameStarting(myID);
@@ -116,12 +142,37 @@ public class ClientNetwork implements Runnable, BoardController {
 				break;
 				
 			case "move": // Notifying of a move that was made.
+				//send(client, "dumpLines");
 				player = Integer.parseInt(commandParams[0]);
 				axis = Integer.parseInt(commandParams[1]);
 				x = Integer.parseInt(commandParams[2]);
 				y = Integer.parseInt(commandParams[3]);
 				boardLines[axis][x][y] = player;
 				display.move(player, axis, x, y);
+				break;
+				
+			case "dumpLines":
+				String[] lineParams;
+				for (String lines : commandParams) {
+					 lineParams = lines.split(",");
+					 System.out.println("lines: " + lines);
+					 axis = Integer.parseInt(lineParams[0]);
+					 x = Integer.parseInt(lineParams[1]);
+					 y = Integer.parseInt(lineParams[2]);
+					 player = Integer.parseInt(lineParams[3]);
+					 boardLines[axis][x][y] = player;
+				}
+				break;
+				
+			case "dumpSquares":
+				String[] squareParams;
+				for (String lines : commandParams) {
+					 squareParams = lines.split(",");
+					 x = Integer.parseInt(squareParams[0]);
+					 y = Integer.parseInt(squareParams[1]);
+					 player = Integer.parseInt(squareParams[2]);
+					 boardSquares[x][y] = player;
+				}
 				break;
 				
 			case "square": // Notifying of a square that is now owned.
@@ -163,7 +214,13 @@ public class ClientNetwork implements Runnable, BoardController {
 	}
 	
 	
-	
+	private void setupGame() {
+		boardLines = new int[2][][];
+		boardLines [Constants.X_AXIS] = new int[boardSize][boardSize +1];
+		boardLines [Constants.Y_AXIS] = new int[boardSize +1][boardSize];
+		boardSquares = new int[boardSize][boardSize];
+		scores = new int[players + 1];
+	}
 	
 	public boolean isGameStarted() {
 		return this.gameStarted;
@@ -180,6 +237,10 @@ public class ClientNetwork implements Runnable, BoardController {
 	
 	public int getPlayerNumber() {
 		return myID;
+	}
+	
+	public String getPlayerName(int playerNumber) {
+		return clientNames.get(playerNumber);
 	}
 	
 	public int getOwnerLine(int axis, int x, int y) {
@@ -203,6 +264,11 @@ public class ClientNetwork implements Runnable, BoardController {
 	@Override
 	public void playLine(int axis, int x, int y) {
 		sendLine(axis, x, y);
+	}
+	
+	@Override
+	public void setName(String playerName) {
+		sendNameChange(playerName);
 	}
 	
 	@Override

@@ -7,6 +7,11 @@ public interface BoardController {
 	 */
 	public int getScore(int player);
 	
+	/*
+	 * Returns the name registered with the player number.
+	 */
+	public String getPlayerName(int playerNumber);
+	
 	/* 
 	 * Returns the player number of your player.
 	 */
@@ -46,4 +51,9 @@ public interface BoardController {
 	 * Plays at the given line location.
 	 */
 	public void playLine(int axis, int x, int y);
+	
+	/*
+	 * Changes my name to the parameter.
+	 */
+	public void setName(String playerName);
 }

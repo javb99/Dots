@@ -28,13 +28,12 @@ public class Server {
 	public int movesLeft;
 	// server related
 	public int gamesToPlay;
-	public int gameNumber;
-	public int[] winners;
+	public ArrayList<Integer> winners;
 	public boolean gameStarted;
 	public Selector selector;
 	public ServerSocketChannel server;
-	public int numberClients;
-	ArrayList<Socket> clients;
+	public ArrayList<Socket> clients;
+	public ArrayList<String> clientNames;
 	
 	public Server(int boardSize, int players, int games) {
 		this.boardSize = boardSize;
@@ -58,20 +57,19 @@ public class Server {
 						((SocketChannel)key.channel()).finishConnect();
 						
 					} else if (key.isAcceptable()) {
-						System.out.println("trying to connect.");
 						// accept connection
 						if (!gameStarted) {
 							SocketChannel client = server.accept(); 
 							client.configureBlocking(false); 
 							client.socket().setTcpNoDelay(true); 
-							client.register(selector, SelectionKey.OP_READ, numberClients);
+							client.register(selector, SelectionKey.OP_READ, clients.size());
 							clients.add(client.socket());
-							
-							if (numberClients + 1 == players) {
+							clientNames.add("");
+							notifyConnectionFinnished(client.socket(), players, boardSize);
+							if (clients.size() == players) {
 								setupGame();
 							}
-							numberClients += 1;
-							notifyConnectionFinnished(client.socket(), players, boardSize);
+							
 						} else {
 							close(key);
 						}
@@ -94,19 +92,24 @@ public class Server {
 		}
 	}
 	
+	private void close(SelectionKey key) throws IOException {
+	    key.cancel();
+	    key.channel().close();
+	}
+	
 	/**
 	 * Sends the message to the connection plus a char at the front telling how long the message is.
 	 * @param connection: The socket to send the message.
 	 * @param message: The string to send.
 	 */
 	public void send(Socket connection, String message) {
-		try {
+		try {			
 			char lengthChar = (char) message.length();
 			String command = lengthChar + message;
 			ByteBuffer buff = ByteBuffer.wrap(command.getBytes());;
 			connection.getChannel().write(buff);
 		} catch (Exception e) {
-			System.out.println("error: " + e.toString());
+			e.printStackTrace();
 		}
 	}
 	
@@ -120,24 +123,50 @@ public class Server {
 		}
 	}
 	
-	private void close(SelectionKey key) throws IOException {
-	    key.cancel();
-	    key.channel().close();
+	/**
+	 * Sends the entire board(lines) to the client specified.
+	 * @param clientId: Index of client to send the dumped variable.
+	 */
+	public void dumpBoardLines(Socket client) {
+		StringBuilder builder = new StringBuilder("dumpLines ");
+		for (int axis = Constants.X_AXIS; axis < boardLines.length; ++axis) {
+			for (int x = 0; x < boardLines[axis].length; ++x) {
+				for (int y = 0; y < boardLines[axis][x].length; ++y) {
+					send("move " + boardLines[axis][x][y] + "_" + axis + "_" + x + "_" + y);
+				}
+			}
+		}
+		send(client, builder.toString());
 	}
 	
-	public void notifyStartGame() {
-		//send("start " + numPlayers + "_" + boardSize);
-		for (int i = 0; i < clients.size(); i++) {
-			int id = i +1;
-			if (i > numberClients) {
-				id = -1;
+	/**
+	 * Sends the entire board(squares) to the client specified.
+	 * @param clientId: Index of client to send the dumped variable.
+	 */
+	public void dumpBoardSquares(Socket client) {
+		StringBuilder builder = new StringBuilder("dumpSquares ");
+		for (int x = 0; x < boardSquares.length; ++x) {
+			for (int y = 0; y < boardSquares[x].length; ++y) {
+				send(client, "square " + boardSquares[x][y] + "_" + x + "_" + y);
 			}
-			send(clients.get(i), "start "  + (id));
 		}
+		send(client, builder.toString());
 	}
 	
 	public void notifyConnectionFinnished(Socket client, int numPlayers, int boardSize) {
 		send(client, "connection " + numPlayers + "_" + boardSize);
+	}
+	
+	public void notifyStartGame() {
+		for (int i = 0; i < clients.size(); i++) {
+			int id = i +1;
+			send(clients.get(i), "start "  + (id));
+		}
+	}
+	
+	public void notifyPlayerName(int playerID, String playerName) {
+		System.out.println("player name changed to: " + playerName);
+		send("name " + playerID + "_" + playerName);
 	}
 	
 	public void notifyPlayerTurn(int playerID) {
@@ -146,13 +175,13 @@ public class Server {
 	}
 	
 	public void notifyMove(int playerID, int axis, int x, int y) {
-		System.out.println("player " + playerID + " placed a line");
-		send("move " + playerID + "_" + axis + "_" + x + "_" + y);
+		System.out.println("player " + boardLines[axis][x][y] + " placed a line");
+		send("move " + boardLines[axis][x][y] + "_" + axis + "_" + x + "_" + y);
 	}
 	
 	public void notifySquare(int playerID, int x, int y) {
 		System.out.println("player " + playerID + " finished a square");
-		send("square " + playerID + "_" + x + "_" + y);
+		send("square " + boardSquares[x][y] + "_" + x + "_" + y);
 	}
 	
 	public void notifyScore(int playerID, int score) {
@@ -166,6 +195,7 @@ public class Server {
 	public void notifyEndGame(int winner) {
 		send("end " + winner);
 	}
+	
 	/**
 	 * Notifies all the clients that the session is over then tells the number of games each player won.
 	 * @param scores should be length players +1
@@ -206,6 +236,7 @@ public class Server {
 			}
 			String message = builder.toString();
 			String line = new String(message);
+
 			String[] commands = line.split(" ");
 			
 			// evals to true if the client is trying to make a move.
@@ -216,7 +247,7 @@ public class Server {
 					int axis = Integer.parseInt(lineParams[1]);
 					int x = Integer.parseInt(lineParams[2]);
 					int y = Integer.parseInt(lineParams[3]);
-					System.out.println("player:" + player);
+					//System.out.println("player:" + player);
 					System.out.println("axis:" + axis);
 					System.out.println("x:" + x);
 					System.out.println("y:" + y);
@@ -225,8 +256,23 @@ public class Server {
 					}
 
 				}
+			} else if(commands[0].matches("name")) {
+				String[] lineParams = commands[1].split("_");
+				int playerID = Integer.parseInt(lineParams[0]);
+				String playerName = lineParams[1];
+				
+				clientNames.set(playerID-1, playerName);
+				notifyPlayerName(playerID, playerName);
+				
+			} else if(commands[0].matches("dumpLines")) {
+				dumpBoardLines(client);
+				
+			} else if(commands[0].matches("dumpSquares")) {
+				dumpBoardSquares(client);
+				
 			} else {
 				System.out.println("message not correct format:" + message + ":end");
+				System.exit(1);
 			}
 			
 		} catch (IOException ioe) {
@@ -246,10 +292,19 @@ public class Server {
 	 * Initializes the variables related to a session.
 	 */
 	public void setupSession() {
-		gameNumber = -1;
-		winners = new int[gamesToPlay];
-		numberClients = 0;
+		if (clients != null && clients.size() > 0) {
+			for (Socket client : clients) {
+				try {
+					client.close();
+				} catch (IOException ioe) {
+					System.out.println("IOException while closing connection to client.");
+				}
+				
+			}
+		}
+		winners = new ArrayList<Integer>();
 		clients = new ArrayList<Socket>();
+		clientNames = new ArrayList<String>();
 	}
 	
 	/**
@@ -257,12 +312,11 @@ public class Server {
 	 */
 	private void setupGame() {
 		boardLines = new int[2][][];
-		boardLines[X_AXIS] = new int[boardSize][boardSize +2];
-		boardLines[Y_AXIS] = new int[boardSize +2][boardSize];
+		boardLines[X_AXIS] = new int[boardSize][boardSize +1];
+		boardLines[Y_AXIS] = new int[boardSize +1][boardSize];
 		boardSquares = new int[boardSize][boardSize];
 		score = new int[players];
 		player = 0;
-		++gameNumber;
 		movesLeft = 1;
 		notifyStartGame();
 		gameStarted = true;
@@ -279,6 +333,10 @@ public class Server {
 	 */
 	public boolean inputMove(int axis, int x, int y, int player){
 		// checks if spot is taken
+		System.out.println("line taken in owned by: " + boardLines [axis] [x] [y] + ". played by this player: " + player + ". it is this players turn:" + this.player);
+		if (axis > Constants.Y_AXIS || x > boardLines[axis].length || y > boardLines[axis][x].length) {
+			System.out.println("line not valid.");
+		}
 		if (boardLines [axis] [x] [y] == 0 && player == this.player) {
 			boardLines [axis] [x] [y] = player;
 			movesLeft -= 1;
@@ -308,12 +366,12 @@ public class Server {
 	 * Checks if the game has been won.
 	 */
 	private int isGameWon() {
-		System.out.println("is game won?");
-		System.out.println("score length: " + score.length);
+		//System.out.println("is game won?");
+		//System.out.println("score length: " + score.length);
 		int totalScore = 0;
 		int max = 0;
 		for (int i = 0; i < score.length; i++) {
-			System.out.println("player " + (i+1) + "'s score: " + score[i] + ".");
+			//System.out.println("player " + (i+1) + "'s score: " + score[i] + ".");
 			totalScore += score[i];
 			if (score[i] >= score[max]) {
 				max = i;
@@ -328,8 +386,9 @@ public class Server {
 	private void gameOver(int winner) {
 		System.out.println("there is a winner: " + winner);
 		notifyEndGame(winner);
-		winners[gameNumber] = winner;
-		if (gamesToPlay - (gameNumber+1) > 0) {
+		winners.add(winner);
+		System.out.println("games to play: " + gamesToPlay + ". winners.size: " + winners.size());
+		if (gamesToPlay - winners.size() > 0) {
 			setupGame();
 		} else {
 			sessionOver(getSessionScores());
@@ -345,8 +404,8 @@ public class Server {
 	
 	private int[] getSessionScores() {
 		int[] gamesWon = new int[players +1];
-		for (int game = 0; game < winners.length; ++game) {
-			gamesWon[winners[game]] += 1;
+		for (int game = 0; game < winners.size(); ++game) {
+			gamesWon[winners.get(game)] += 1;
 		}
 		int winner = 0;
 		for (int i = 1; i < gamesWon.length; ++i) {
@@ -367,14 +426,14 @@ public class Server {
 	public void checkSquare(int axis, int x, int y, int player) {
 		if (axis == X_AXIS) {
 			// if checking from top
-			if (y < boardSize &&  boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0 && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0) {
+			if ((y >= 0 && y < boardSize && x >= 0 && x < boardSize) &&  boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0 && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0) {
 				boardSquares[x] [y] = player;
 				notifySquare(player, x, y);
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
 			// if checking from bottom
-			if (y > 0 && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x +1][y -1] > 0) {
+			if (((y-1) >= 0 && (y-1) < boardSize && x >= 0 && x < boardSize) && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x][y -1] > 0 && boardLines [Y_AXIS][x +1][y -1] > 0) {
 				boardSquares[x] [y-1] = player;
 				notifySquare(player, x, y-1);
 				movesLeft += 1;
@@ -383,14 +442,14 @@ public class Server {
 		}
 		if (axis == Y_AXIS) {
 			// if checking from left
-			if (x < boardSize && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0 && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0) {
+			if ((x >= 0 && x < boardSize && y >= 0 && y < boardSize) && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x +1][y] > 0 && boardLines [X_AXIS][x][y] > 0 && boardLines [X_AXIS][x][y +1] > 0) {
 				boardSquares[x] [y] = player;
 				notifySquare(player, x, y);
 				movesLeft += 1;
 				score[player - 1] += 1;
 			}
 			// if checking from right
-			if (x > 0 && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y +1] > 0) {
+			if (((x-1) >= 0 && (x-1) < boardSize && y >= 0 && y < boardSize) && boardLines [Y_AXIS][x][y] > 0 && boardLines [Y_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y] > 0 && boardLines [X_AXIS][x -1][y +1] > 0) {
 				boardSquares[x-1] [y] = player;
 				notifySquare(player, x-1, y);
 				movesLeft += 1;

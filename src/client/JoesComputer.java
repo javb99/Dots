@@ -6,6 +6,7 @@ import java.util.Iterator;
 import java.util.Random;
 
 import utilities.Constants;
+
 import common.JoesMove;
 import common.Move;
 
@@ -22,6 +23,8 @@ public class JoesComputer extends ComputerPlayer{
 	}
 
 	public void turn(int player) {
+		this.boardSize = boardController.getBoardSize();
+		createBoardCopy();
 		if(player == boardController.getPlayerNumber()) {
 			try {
 				Thread.sleep(0);
@@ -30,7 +33,13 @@ public class JoesComputer extends ComputerPlayer{
 			}
 			// If here then it is my turn.
 			JoesMove line = finishSquareMove();
-			//System.out.println("The hops: " + line.hops.toString());
+			System.out.println("The hops: " + line.hops.toString());
+			System.out.println("line was owned by: " + getOwnerLine(line));
+			System.out.println("line: " + line.axis + " " + line.point.x + " " + line.point.y + " was sent to the server.");
+			if (getOwnerLine(line) > 0) {
+				System.out.println("sent default move.");
+				playLine(new Move(0, new Point(0,0)));
+			}
 			playLine(line);
 		}
 	}
@@ -41,8 +50,7 @@ public class JoesComputer extends ComputerPlayer{
 	private int getCount(Point square) {
 		int count = 0;
 		ArrayList<Move> lines = getLines(square);
-		for (Iterator<Move> lineIterator = lines.iterator(); lineIterator.hasNext();) {
-			Move line = lineIterator.next();
+		for (Move line : lines) {
 			if (getOwnerLine(line) > 0) {
 				++count;
 			}
@@ -57,35 +65,41 @@ public class JoesComputer extends ComputerPlayer{
 		int y = line.point.y;
 		
 		if (axis == Constants.X_AXIS) {
-			// if line is on the NORTH
-			if (y < boardSize) {
-				list.add(new Point(x, y));
-			}
 			// if line is on the SOUTH
-			if (y > 0) {
+			if ((y-1) >= 0 && (y-1) < boardSize && x >= 0 && (x+1) < boardSize) {
 				list.add(new Point(x, y-1));
+			}
+			// if line is on the NORTH
+			if (y >= 0 && y < boardSize && x >= 0 && x < boardSize) {
+				list.add(new Point(x, y));
 			}
 		}
 		if (axis == Constants.Y_AXIS) {
 			// if checking from left
-			if (x < boardSize) {
+			if (x >= 0 && x < boardSize && y >= 0 && y < boardSize) {
 				list.add(new Point(x, y));
 			}
 			// if checking from right
-			if (x > 0) {
+			if ((x-1) >= 0 && (x-1) < boardSize && y >= 0 && (y+1) < boardSize) {
 				list.add(new Point(x-1, y));
 			}
 		}
 		return list;
 	}
 	
-	private ArrayList<Move> getLines(Point square) {
-		ArrayList<Move> list = new ArrayList<Move>();
-		list.add(new Move(Constants.X_AXIS, square.x, square.y, boardController.getOwnerLine(Constants.X_AXIS, square.x, square.y))); // NORTH
-		list.add(new Move(Constants.X_AXIS, square.x, square.y +1, boardController.getOwnerLine(Constants.X_AXIS, square.x, square.y +1))); // SOUTH
-		list.add(new Move(Constants.Y_AXIS, square.x, square.y, boardController.getOwnerLine(Constants.Y_AXIS, square.x, square.y))); // EAST
-		list.add(new Move(Constants.Y_AXIS, square.x +1, square.y, boardController.getOwnerLine(Constants.Y_AXIS, square.x +1, square.y))); // WEST
-		return list;
+	private ArrayList<Move> getLines(Point square) {// problem takes in a y of -1
+		if (square.x < boardSize && square.y < boardSize && square.x > -1 && square.y > -1) {
+			ArrayList<Move> list = new ArrayList<Move>();
+			list.add(new Move(Constants.X_AXIS, square.x, square.y, boardController.getOwnerLine(Constants.X_AXIS, square.x, square.y))); // NORTH
+			list.add(new Move(Constants.X_AXIS, square.x, square.y +1, boardController.getOwnerLine(Constants.X_AXIS, square.x, square.y +1))); // SOUTH
+			list.add(new Move(Constants.Y_AXIS, square.x, square.y, boardController.getOwnerLine(Constants.Y_AXIS, square.x, square.y))); // EAST
+			list.add(new Move(Constants.Y_AXIS, square.x +1, square.y, boardController.getOwnerLine(Constants.Y_AXIS, square.x +1, square.y))); // WEST
+			return list;
+		} else {
+			System.out.println("getlines passed invalid square: " + square);
+			return null;
+		}
+		
 	}
 	
 	private void playLine(Move line) {
@@ -134,19 +148,16 @@ public class JoesComputer extends ComputerPlayer{
 	private JoesMove dontMakeStupidMove() {
 		ArrayList<Move> whitelist = new ArrayList<Move>();
 		ArrayList<Move> blacklist = new ArrayList<Move>();
+		int [][][] boardLinesCopy = boardController.getBoardLinesCopy();
 		
-		for(int axis=Constants.X_AXIS; axis<=Constants.Y_AXIS; ++axis) {
-			int xSize = axis == Constants.Y_AXIS ? boardSize+1 : boardSize;
-			for(int x=0; x<xSize; ++x) {
-				int ySize = axis == Constants.X_AXIS ? boardSize+1 : boardSize;
-				for(int y=0; y<ySize; ++y) {
+		for(int axis=Constants.X_AXIS; axis<boardLinesCopy.length; ++axis) {
+			for(int x=0; x<boardLinesCopy[axis].length; ++x) {
+				for(int y=0; y<boardLinesCopy[axis][x].length; ++y) {
 					Move line = new Move(axis, x, y);
 					int owner = boardController.getOwnerLine(axis, x, y);
 					if(owner == 0) { // line is not owned
-						
-						ArrayList<Point> squares = getSquares(new Move(axis, x, y));
-						for (Iterator<Point> squareIterator = squares.iterator(); squareIterator.hasNext();) {
-							Point square = squareIterator.next();
+						ArrayList<Point> squares = getSquares(line);
+						for (Point square : squares) {
 							if (getCount(square) == 2) {
 								blacklist.add(line);
 							}
@@ -160,34 +171,9 @@ public class JoesComputer extends ComputerPlayer{
 		}
 		
 		if (whitelist.isEmpty() && !blacklist.isEmpty()) {
-			//System.out.println("blacklist.");
-			return makeRandomMove(blacklist).addHop("Stupid");
+			return makeRandomMove(blacklist).addHop("StupidBlack");
 		} else {
-			//System.out.println("whitelist.");
-			return makeRandomMove(whitelist).addHop("Stupid");
-		}
-	}
-	
-	private boolean canMakeShadowMove() {              // edges crashing.
-		if (latestMove == null) {
-			return false;
-		}
-		try {
-			if (latestMove.axis == Constants.X_AXIS) {
-				return boardController.getOwnerLine(Constants.Y_AXIS, latestMove.point.x, latestMove.point.y) < 1;
-			} else {
-				return boardController.getOwnerLine(Constants.X_AXIS, latestMove.point.x, latestMove.point.y) < 1;
-			}
-		} catch (IndexOutOfBoundsException e) {
-			return false;
-		}
-	}
-	
-	private void makeShadowMove() {
-		if (latestMove.axis == Constants.X_AXIS) {
-			boardController.playLine(Constants.Y_AXIS, latestMove.point.x, latestMove.point.y);
-		} else {
-			boardController.playLine(Constants.X_AXIS, latestMove.point.x, latestMove.point.y);
+			return makeRandomMove(whitelist).addHop("StupidWhite");
 		}
 	}
 	
@@ -196,30 +182,10 @@ public class JoesComputer extends ComputerPlayer{
 		//System.out.println("list size." + list.size());
 		return new JoesMove(list.get(random.nextInt(list.size())), "Random");
 	}
-	
-	private JoesMove makeRandomMove() {
-		Random random = new Random();
-		int axis;
-		int x;
-		int y;
-		while (true) {
-			axis = random.nextInt(2);
-			x = random.nextInt(axis == Constants.Y_AXIS ? boardSize+1 : boardSize);
-			y = random.nextInt(axis == Constants.X_AXIS ? boardSize+1 : boardSize);
-			if (boardController.getOwnerLine(axis, x, y) == 0) {
-				return new JoesMove(axis, x, y, "Random");
-			}
-		}
-		
-	}
 
 	@Override
 	public void move(int player, int axis, int x, int y) {
-		this.boardSize = boardController.getBoardSize();
-		createBoardCopy();
 		latestMove = new Move(axis, x, y, player);
-		
-
 	}
 
 	@Override
