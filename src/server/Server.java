@@ -15,7 +15,7 @@ import javax.swing.JOptionPane;
 
 import utilities.Constants;
 
-public class Server {
+public class Server implements Runnable{
 	// gameplay related
 	public int boardSize;
 	public int[][][] boardLines;
@@ -25,6 +25,7 @@ public class Server {
 	public int player;
 	public int movesLeft;
 	// server related
+	private Thread runner;
 	public int gamesToPlay;
 	public ArrayList<Integer> winners;
 	public boolean gameStarted;
@@ -37,6 +38,14 @@ public class Server {
 		this.boardSize = boardSize;
 		this.players = players;
 		gamesToPlay = games;
+		if (runner == null) {
+			runner = new Thread(this);
+			runner.start();
+		}
+	}
+
+	@Override
+	public void run() {
 		setupSession();
 		try {
 			selector = Selector.open();
@@ -482,4 +491,6 @@ public class Server {
 			new Server(boardSizeL, playersL, gamesL);
 		}
 	}
+
+
 }

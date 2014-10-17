@@ -14,6 +14,7 @@ import utilities.Constants;
 public class ClientNetwork implements Runnable, BoardController {
 
 	// network related
+	public String ip;
 	public int port;
 	public Thread runner;
 	public Socket server;
@@ -32,13 +33,12 @@ public class ClientNetwork implements Runnable, BoardController {
 	// display related
 	public IDisplay display;
 
-
-
-	public ClientNetwork(IDisplay display, int port) { // todo not using port passed in.
-		this(display, port, true);
+	public ClientNetwork(IDisplay display, String ip, int port) {
+		this(display, ip, port, true);
 	}
 
-	public ClientNetwork(IDisplay display, int port, boolean startup) {
+	public ClientNetwork(IDisplay display, String ip, int port, boolean startup) {
+		this.ip = ip;
 		this.port = port;
 		this.display = display;
 		if (runner == null) {
@@ -53,7 +53,7 @@ public class ClientNetwork implements Runnable, BoardController {
 	public void run() {
 		try {
 			client = new Socket();
-			client.connect(new InetSocketAddress(Constants.IP, port));
+			client.connect(new InetSocketAddress(ip, port));
 			BufferedReader input = new BufferedReader(new InputStreamReader(client.getInputStream()));
 			while(true) {
 				readInput(input);
