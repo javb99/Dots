@@ -31,22 +31,30 @@ public class ClientNetwork implements Runnable, BoardController {
 	private int myID;
 	private ArrayList<String> clientNames;
 	// display related
-	public IDisplay display;
+	public ArrayList<IDisplay> displays;
 
-	public ClientNetwork(IDisplay display, String ip, int port) {
-		this(display, ip, port, true);
-	}
-
-	public ClientNetwork(IDisplay display, String ip, int port, boolean startup) {
+	public ClientNetwork(String ip, int port, boolean startup) {
 		this.ip = ip;
 		this.port = port;
-		this.display = display;
+		displays = new ArrayList<IDisplay>();
 		if (runner == null) {
 			runner = new Thread(this);
 		}
 		if (startup) {
 			runner.start();
 		}
+	}
+
+	public ClientNetwork(ArrayList<IDisplay> displays, String ip, int port) {
+		this(displays, ip, port, true);
+	}
+
+	public ClientNetwork(ArrayList<IDisplay> displays, String ip, int port, boolean startup) {
+		this(ip, port, startup);
+		for (IDisplay display: displays) {
+			addDisplay(display);
+		}
+
 	}
 
 	@Override
@@ -106,12 +114,13 @@ public class ClientNetwork implements Runnable, BoardController {
 
 		try {
 			int length = reader.read();
-			System.out.println("length: " + length);
+			if (length < 0) {
+				return;
+			}
 			char[] message = new char[length];
 			reader.read(message);
 			String line = new String(message);
 
-			System.out.println("command: " + line + ". length char:" + length);
 			if ( line.length() < 3) {
 				System.out.println("command not long enough.");
 			}
@@ -127,14 +136,15 @@ public class ClientNetwork implements Runnable, BoardController {
 					clientNames.add("");
 				}
 				setupGame();
-				display.connected(players, boardSize);
+				for (int i = 0; i < displays.size(); ++i) {
+					displays.get(i).connected(players, boardSize);
+				}
 				break;
 
 			case "name": // Notifying that there is a name now registered with this number.
 				player = Integer.parseInt(commandParams[0]);
 				playerName = commandParams[1];
 				clientNames.set(player, playerName);
-				System.out.println("player name changed to: " + playerName);
 				break;
 
 			case "start": // Notifying that the game is starting.
@@ -142,12 +152,17 @@ public class ClientNetwork implements Runnable, BoardController {
 				setupGame();
 				player = 0;
 				gameStarted = true;
-				display.gameStarting(myID);
+
+				for (IDisplay display : displays) {
+					display.gameStarting(myID);
+				}
 				break;
 
 			case "turn": // Notifying who's turn it is.
 				this.player = Integer.parseInt(commandParams[0]);
-				display.turn(this.player);
+				for (int i = 0; i < displays.size(); ++i) {
+					displays.get(i).turn(this.player);
+				}
 				break;
 
 			case "move": // Notifying of a move that was made.
@@ -157,7 +172,9 @@ public class ClientNetwork implements Runnable, BoardController {
 				x = Integer.parseInt(commandParams[2]);
 				y = Integer.parseInt(commandParams[3]);
 				boardLines[axis][x][y] = player;
-				display.move(player, axis, x, y);
+				for (int i = 0; i < displays.size(); ++i) {
+					displays.get(i).move(player, axis, x, y);
+				}
 				break;
 
 			case "dumpLines":
@@ -189,7 +206,9 @@ public class ClientNetwork implements Runnable, BoardController {
 				x = Integer.parseInt(commandParams[1]);
 				y = Integer.parseInt(commandParams[2]);
 				boardSquares[x][y] = player;
-				display.square(player, x, y);
+				for (int i = 0; i < displays.size(); ++i) {
+					displays.get(i).square(player, x, y);
+				}
 				break;
 
 			case "score": // Notifying of the score for a player.
@@ -200,7 +219,9 @@ public class ClientNetwork implements Runnable, BoardController {
 
 			case "end": // Notifying of the winner of the game
 				winner = Integer.parseInt(commandParams[0]);
-				display.gameOver(winner);
+				for (int i = 0; i < displays.size(); ++i) {
+					displays.get(i).gameOver(winner);
+				}
 				break;
 
 			case "sessionEnd": // Notifying of the winner of the session.
@@ -208,7 +229,9 @@ public class ClientNetwork implements Runnable, BoardController {
 				for (int i = 0; i < commandParams.length; i++) {
 					scores[i] = Integer.parseInt(commandParams[i]);
 				}
-				display.sessionOver(scores);
+				for (int i = 0; i < displays.size(); ++i) {
+					displays.get(i).sessionOver(scores);
+				}
 				break;
 
 			default:
@@ -220,6 +243,10 @@ public class ClientNetwork implements Runnable, BoardController {
 			e.printStackTrace();
 			System.exit(1);
 		}
+	}
+
+	public void addDisplay(IDisplay display) {
+		displays.add(display);
 	}
 
 

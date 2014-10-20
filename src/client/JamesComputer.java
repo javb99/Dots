@@ -13,8 +13,8 @@ public class JamesComputer extends ComputerPlayer {
 
 	private ArrayList<Move> allMoves = null;
 
-	JamesComputer(BoardController controller) {
-		super(controller);
+	JamesComputer(BoardController controller, String name) {
+		super(controller, name);
 	}
 
 	private ArrayList<Move> allMoves()

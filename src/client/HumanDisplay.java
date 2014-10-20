@@ -22,40 +22,39 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JSpinner;
 import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 import utilities.Constants;
 
 // change turns and scoring...........................................
 
-public class HumanDisplay extends JFrame implements ActionListener, MouseListener, IDisplay {
+public class HumanDisplay extends JFrame implements Runnable, ActionListener, MouseListener, ChangeListener, IDisplay {
 	/**
 	 *
 	 */
 	public static void main(String[] args) {
 		int thicknessIN = 16;
-		int portIN = Constants.PORT;
 		String computerNameIN = "human";
-		if (args.length >= 2) {
+		if (args.length >= 1) {
 			thicknessIN = Integer.parseInt(args[0]);
-			portIN = Integer.parseInt(args[1]);
 		}
 
-		if (args.length >= 3) {
-			computerNameIN = args[2];
+		if (args.length >= 2) {
+			computerNameIN = args[1];
 		}
-		if (thicknessIN > 64 && portIN > 1024 && portIN < 65535 ){
+		if (thicknessIN > 64){
 			JOptionPane.showMessageDialog(null, "comand-line argument(s) invalid", "Error", JOptionPane.ERROR_MESSAGE);
 			System.exit(ERROR);
 		}
-		new HumanDisplay(10, thicknessIN, 2, portIN, computerNameIN);
+		new HumanDisplay(thicknessIN, computerNameIN);
 	}
 
 	private static final long serialVersionUID = 1L;
 	// class variables
-	public static final int Y_AXIS = 1;
-	public static final int X_AXIS = 0;
-
 	public int space;
 	public int thickness;
 	public int boardSize;
@@ -64,15 +63,20 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 	// instance variables
 
 	//  non gui related.
-	public String ip;
+	public String ip = Constants.IP;
 	public int port;
 	public String computerName;
+	private Thread runner;
 
 	//  gui related.
 	public CardLayout cardLayout;
 	public JPanel mainPanel;
 	//   Single player screen related.
 	public JPanel singlePlayerScreenPanel;
+	public JSpinner playerSlider;
+	public JPanel[] playerSetupPanels;
+	public JComboBox<String>[] ComputerNameBoxes;
+	public JTextField[] nameTextFields;
 	//   Multi player screen related.
 	public JPanel multiPlayerScreenPanel;
 	public JTextField portField;
@@ -91,16 +95,25 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 	public ClientNetwork clientNetwork;
 	public Player computerPlayer;
 
-	public HumanDisplay(int boardSizeIn, int thicknessIn, int playersIn, int port, String computerNameIn) {
+	public HumanDisplay(int thicknessIn, String computerNameIn) {
 		super("Dots And Lines Game client: " + computerNameIn);
 
-		ip = Constants.IP;
-		this.port = port;
 		computerName = computerNameIn;
 		thickness = thicknessIn;
 		space = thickness * 4;
 
-		// Sets up the gui.
+		if (runner == null) {
+			runner = new Thread(this);
+			runner.start();
+		}
+	}
+
+	@Override
+	public void run() {
+		setupGUI();
+	}
+
+	public void setupGUI() {
 		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
 		setupBoardPanel();
@@ -108,7 +121,6 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 		setupSinglePlayerPanel();
 		setupMultiPlayerPanel();
 
-		// combination
 		cardLayout = new CardLayout();
 		mainPanel = new JPanel(cardLayout);
 		mainPanel.add(titleScreenPanel, Constants.TITLE_CARD_NAME);
@@ -149,8 +161,6 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 		multiPlayerButton.setActionCommand(Constants.GO_TO_MULTI_PLAYER);
 		multiPlayerButton.addActionListener(this);
 
-
-
 		titleScreenPanel.add(logo);
 		titleScreenPanel.add(singlePlayerButton);
 		titleScreenPanel.add(multiPlayerButton);
@@ -159,16 +169,37 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 	public void setupSinglePlayerPanel() {
 		// Single player setup panel
 		singlePlayerScreenPanel = new JPanel();
+		BoxLayout box = new BoxLayout(singlePlayerScreenPanel, BoxLayout.Y_AXIS);
+		//singlePlayerScreenPanel.setLayout(box);
 
-		JLabel computerNameLabel = new JLabel("Computer Name");
-		JComboBox<String> nameList = new JComboBox<String>(Constants.validComputerNames);
+		JLabel playerNumberLabel = new JLabel("# players.");
+		singlePlayerScreenPanel.add(playerNumberLabel);
+
+		playerSlider = new JSpinner(new SpinnerNumberModel(2, 1, colors.length -1, 1));
+		playerSlider.addChangeListener(this);
+		singlePlayerScreenPanel.add(playerSlider);
+
+		ComputerNameBoxes = new JComboBox[colors.length -1];
+		nameTextFields = new JTextField[colors.length -1];
+		playerSetupPanels = new JPanel[colors.length -1];
+
+		for (int i = 0; i < ComputerNameBoxes.length; ++i) {
+			playerSetupPanels[i] = new JPanel();
+
+			nameTextFields[i] = new JTextField("Player " + (i +1));
+			ComputerNameBoxes[i] = new JComboBox<String>(Constants.validComputerNames);
+			playerSetupPanels[i].add(nameTextFields[i]);
+			playerSetupPanels[i].add(ComputerNameBoxes[i]);
+			singlePlayerScreenPanel.add(playerSetupPanels[i]);
+			if (i > 1) {
+				playerSetupPanels[i].setVisible(false);
+			}
+		}
 
 		JButton titleScreenButton = new JButton("Back");
 		titleScreenButton.setActionCommand(Constants.GO_TO_TITLE);
 		titleScreenButton.addActionListener(this);
 
-		singlePlayerScreenPanel.add(computerNameLabel);
-		singlePlayerScreenPanel.add(nameList);
 		singlePlayerScreenPanel.add(titleScreenButton);
 	}
 
@@ -217,22 +248,39 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 		multiPlayerScreenPanel.add(titleScreenButton);
 	}
 
+	private void startSinglePlayer() {
+		int numberOfPlayers = (int) playerSlider.getValue();
+		for (int i = 0; i <= numberOfPlayers; ++i) {
+			String name = nameTextFields[i].getText();
+			if ( name.equals("James")) {
+				computerPlayer = new JamesComputer(clientNetwork, name);
+			} else if (name.equals("Joe")) {
+				computerPlayer = new JoesComputer(clientNetwork, name);
+			}
+			if (computerPlayer == null) {
+				computerName = JOptionPane.showInputDialog(this, "What would you like your name to be?");
+			}
+		}
+	}
+
 	public void startButtonPressed() {
-		System.out.println("Start Button Pressed.");
 		changeConnectionStatus(null);
-		clientNetwork = new ClientNetwork(this, ip, port, false);
+		clientNetwork = new ClientNetwork(ip, port, false);
+
 		if ( computerName.equals("James")) {
-			computerPlayer = new JamesComputer(clientNetwork);
+			computerPlayer = new JamesComputer(clientNetwork, computerName);
 		} else if (computerName.equals("Joe")) {
-			computerPlayer = new JoesComputer(clientNetwork);
+			computerPlayer = new JoesComputer(clientNetwork, computerName);
 		}
 		if (computerPlayer == null) {
 			computerName = JOptionPane.showInputDialog(this, "What would you like your name to be?");
 		}
+		clientNetwork.addDisplay(this);
+		clientNetwork.addDisplay( (IDisplay) computerPlayer);
 		clientNetwork.runner.start();
 	}
 
-	public void connectButtonPressed() {
+	public void connectServerButtonPressed() {
 		String ip = ipField.getText();
 		System.out.println("testing: " + ip + " to see if it is valid.");
 		int port;
@@ -255,8 +303,8 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 			connectingLabel.setVisible(true);
 			connectButton.setVisible(false);
 		} else {
-			connectingLabel.setVisible(false);
 			connectingLabel.setText("Connecting...");
+			connectingLabel.setVisible(false);
 			connectButton.setVisible(true);
 		}
 	}
@@ -281,7 +329,8 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 
 		case Constants.SINGLE_PLAYER_CARD_NAME:
 			cardLayout.show(mainPanel, Constants.SINGLE_PLAYER_CARD_NAME);
-			this.setSize(160, 160);
+			int value = (int) playerSlider.getValue();
+			this.setSize(160, 110 + value * 40);
 			break;
 		}
 
@@ -303,8 +352,12 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 	public void actionPerformed(ActionEvent action) {
 		switch(action.getActionCommand()) {
 
+		case Constants.START_SINGLE_PLAYER:
+			startSinglePlayer();
+			break;
+
 		case Constants.CONNECT_TO_SERVER:
-			connectButtonPressed();
+			connectServerButtonPressed();
 			break;
 
 		case Constants.GO_TO_TITLE: // goes to the title menu.
@@ -334,9 +387,9 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 			int Y = y / space;
 
 			if( x % space <= thickness && y % space > thickness){
-				clientNetwork.sendLine(Y_AXIS, X, Y);
+				clientNetwork.sendLine(Constants.Y_AXIS, X, Y);
 			} else if ( y % space <= thickness && x % space > thickness) {
-				clientNetwork.sendLine(X_AXIS, X, Y);
+				clientNetwork.sendLine(Constants.X_AXIS, X, Y);
 			}
 		}
 	}
@@ -350,11 +403,18 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 	@Override
 	public void mouseReleased(MouseEvent arg0) {}
 
-
-
+	@Override
+	public void stateChanged(ChangeEvent event) {
+		JSpinner source = (JSpinner) event.getSource();
+		if (source.equals(playerSlider)) {
+			int value = (int) source.getValue();
+			for (int i = 0; i < playerSetupPanels.length; ++i) {
+				playerSetupPanels[i].setVisible(i < value);
+			}
+			this.setSize(160, 110 + value * 40);
+		}
+	}
 	// server interaction.
-
-
 
 	@Override
 	public void connected(int numberOfPlayers, int boardSize) {
@@ -387,6 +447,7 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 
 	@Override
 	public void gameStarting(int myID) {
+		changeConnectionStatus(null);
 		clientNetwork.setName(computerName);
 		// gui
 		cardLayout.show(mainPanel, Constants.BOARD_CARD_NAME);
@@ -432,26 +493,19 @@ public class HumanDisplay extends JFrame implements ActionListener, MouseListene
 		} else {
 			turnLabel.setText(player + "'s turn.");
 		}
-		if(computerPlayer != null) {
-			computerPlayer.turn(player);
-		}
 	}
 
 	@Override
 	public void move(int player, int axis, int x, int y) {
-		if(computerPlayer != null) {
-			computerPlayer.move(player, axis, x, y);
-		}
 		displayPanel.repaint();
 	}
 
 	@Override
 	public void square(int player, int x, int y) {
-		if(computerPlayer != null) {
-			computerPlayer.square(player, x, y);
-		}
 		displayPanel.repaint();
 	}
+
+
 
 }
 

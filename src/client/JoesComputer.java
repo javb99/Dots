@@ -2,7 +2,6 @@ package client;
 
 import java.awt.Point;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Random;
 
 import utilities.Constants;
@@ -18,8 +17,9 @@ public class JoesComputer extends ComputerPlayer{
 
 	Move latestMove;
 
-	JoesComputer(BoardController controller) {
-		super(controller);
+	JoesComputer(BoardController controller, String name) {
+		super(controller, name);
+		runner.setName("joe's Computer");
 	}
 
 	@Override
@@ -125,8 +125,8 @@ public class JoesComputer extends ComputerPlayer{
 
 					JoesMove finishLine = new JoesMove(0,0,0, "error"); // default value will never be used if set up correctly.
 					int count = 0;
-					for (Iterator<Move> lineIterator = lines.iterator(); lineIterator.hasNext();) {
-						JoesMove line = new JoesMove(lineIterator.next(), "Square");
+					for (Move move : lines) {
+						JoesMove line = new JoesMove(move, "Square");
 
 						if (getOwnerLine(line) > 0) { // line is owned.
 							++count;
