@@ -25,6 +25,7 @@ public class Server implements Runnable{
 	public int player;
 	public int movesLeft;
 	// server related
+	public int port;
 	private Thread runner;
 	public int gamesToPlay;
 	public ArrayList<Integer> winners;
@@ -34,9 +35,10 @@ public class Server implements Runnable{
 	public ArrayList<Socket> clients;
 	public ArrayList<String> clientNames;
 
-	public Server(int boardSize, int players, int games) {
+	public Server(int boardSize, int players, int games, int port) {
 		this.boardSize = boardSize;
 		this.players = players;
+		this.port = port;
 		gamesToPlay = games;
 		if (runner == null) {
 			runner = new Thread(this);
@@ -50,7 +52,7 @@ public class Server implements Runnable{
 		try {
 			selector = Selector.open();
 			server = ServerSocketChannel.open();
-			server.socket().bind(new InetSocketAddress(Constants.PORT));
+			server.socket().bind(new InetSocketAddress(port));
 			server.configureBlocking(false);
 			server.register(selector, SelectionKey.OP_ACCEPT, "Main accept server");
 			while (true) {
@@ -478,17 +480,18 @@ public class Server implements Runnable{
 		int boardSizeL = 4;
 		int playersL = 2;
 		int gamesL = 2;
+		int portL = Constants.LOCAL_PORT;
 		if (args.length == 4) {
 			boardSizeL = Integer.parseInt(args[0]);
 			playersL = Integer.parseInt(args[1]);
 			gamesL = Integer.parseInt(args[2]);
-			Constants.PORT = Integer.parseInt(args[3]);
+			portL = Integer.parseInt(args[3]);
 		}
 		if (playersL >= 6 || boardSizeL > 15){
 			JOptionPane.showMessageDialog(null, "comand-line argument(s) invalid", "Error", JOptionPane.ERROR_MESSAGE);
 			System.exit(1);
 		}else {
-			new Server(boardSizeL, playersL, gamesL);
+			new Server(boardSizeL, playersL, gamesL, portL);
 		}
 	}
 

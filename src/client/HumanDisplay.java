@@ -1,106 +1,53 @@
 package client;
 
 import java.awt.BorderLayout;
-import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-import java.net.Inet4Address;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 
-import javax.swing.BoxLayout;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JSpinner;
-import javax.swing.JTextField;
-import javax.swing.SpinnerNumberModel;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 
 import utilities.Constants;
 
 // change turns and scoring...........................................
 
-public class HumanDisplay extends JFrame implements Runnable, ActionListener, MouseListener, ChangeListener, IDisplay {
+public class HumanDisplay extends JPanel implements Runnable, MouseListener, IDisplay {
 	/**
 	 *
 	 */
-	public static void main(String[] args) {
-		int thicknessIN = 16;
-		String computerNameIN = "human";
-		if (args.length >= 1) {
-			thicknessIN = Integer.parseInt(args[0]);
-		}
-
-		if (args.length >= 2) {
-			computerNameIN = args[1];
-		}
-		if (thicknessIN > 64){
-			JOptionPane.showMessageDialog(null, "comand-line argument(s) invalid", "Error", JOptionPane.ERROR_MESSAGE);
-			System.exit(ERROR);
-		}
-		new HumanDisplay(thicknessIN, computerNameIN);
-	}
 
 	private static final long serialVersionUID = 1L;
-	// class variables
-	public int space;
-	public int thickness;
 	public int boardSize;
-	public static final Color[] colors = new Color[] {Color.white, Color.red, Color.blue, Color.green, Color.orange, Color.pink, Color.cyan};
 
-	// instance variables
-
-	//  non gui related.
-	public String ip = Constants.IP;
-	public int port;
-	public String computerName;
 	private Thread runner;
 
-	//  gui related.
-	public CardLayout cardLayout;
-	public JPanel mainPanel;
-	//   Single player screen related.
-	public JPanel singlePlayerScreenPanel;
-	public JSpinner playerSlider;
-	public JPanel[] playerSetupPanels;
-	public JComboBox<String>[] ComputerNameBoxes;
-	public JTextField[] nameTextFields;
-	//   Multi player screen related.
-	public JPanel multiPlayerScreenPanel;
-	public JTextField portField;
-	public JTextField ipField;
-	public JButton connectButton;
-	//   Title screen related.
-	public JPanel titleScreenPanel;
-	public JLabel connectingLabel;
-	//   Board screen related.
-	public JPanel boardPanel;
 	public JLabel[] scoreLabels;
 	public JLabel turnLabel;
 	public JPanel scorePanel;
 	public DrawPanel displayPanel;
+	public String cardName;
 
 	public ClientNetwork clientNetwork;
-	public Player computerPlayer;
+	private boolean allowInput;
 
-	public HumanDisplay(int thicknessIn, String computerNameIn) {
-		super("Dots And Lines Game client: " + computerNameIn);
+	public HumanDisplay(ClientNetwork clientNetwork, String name) {
+		this(clientNetwork, name, true);
+	}
 
-		computerName = computerNameIn;
-		thickness = thicknessIn;
-		space = thickness * 4;
+	public HumanDisplay(ClientNetwork clientNetwork, String name, boolean allowInput) {
+		this.allowInput = allowInput;
+		this.clientNetwork = clientNetwork;
+		cardName = Constants.BOARD_CARD_NAME + " " + name;
+
+		setupDisplay();
+		System.out.println("add board card with this name: " + cardName);
+		Constants.client.mainPanel.add(this, cardName);
+
 
 		if (runner == null) {
 			runner = new Thread(this);
@@ -109,286 +56,33 @@ public class HumanDisplay extends JFrame implements Runnable, ActionListener, Mo
 	}
 
 	@Override
-	public void run() {
-		setupGUI();
-	}
+	public void run() {	}
 
-	public void setupGUI() {
-		this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-		setupBoardPanel();
-		setupTitleScreenPanel();
-		setupSinglePlayerPanel();
-		setupMultiPlayerPanel();
-
-		cardLayout = new CardLayout();
-		mainPanel = new JPanel(cardLayout);
-		mainPanel.add(titleScreenPanel, Constants.TITLE_CARD_NAME);
-		mainPanel.add(boardPanel, Constants.BOARD_CARD_NAME);
-		mainPanel.add(singlePlayerScreenPanel, Constants.SINGLE_PLAYER_CARD_NAME);
-		mainPanel.add(multiPlayerScreenPanel, Constants.MULTI_PLAYER_CARD_NAME);
-		switchCard(Constants.TITLE_CARD_NAME);
-
-		add(mainPanel);
-		this.setVisible(true);
-	}
-
-	public void setupBoardPanel() {
+	public void setupDisplay() {
 		// board card
 		displayPanel = new DrawPanel(this);
 		scorePanel = new JPanel();
 		turnLabel = new JLabel();
 		scorePanel.add(turnLabel);
 
-		boardPanel = new JPanel();
 		BorderLayout border = new BorderLayout();
-		boardPanel.setLayout(border);
-		boardPanel.add(scorePanel, BorderLayout.NORTH);
-		boardPanel.add(displayPanel, BorderLayout.CENTER);
+		this.setLayout(border);
+		this.add(scorePanel, BorderLayout.NORTH);
+		this.add(displayPanel, BorderLayout.CENTER);
 		displayPanel.addMouseListener(this);
-	}
-
-	public void setupTitleScreenPanel()	{
-		// title screen card
-		titleScreenPanel = new JPanel();
-		JLabel logo = new JLabel(new ImageIcon("assets//TitleScreenLogo.png"));
-
-		JButton singlePlayerButton = new JButton("Single Player");
-		singlePlayerButton.setActionCommand(Constants.GO_TO_SINGLE_PLAYER);
-		singlePlayerButton.addActionListener(this);
-
-		JButton multiPlayerButton = new JButton("Multi Player");
-		multiPlayerButton.setActionCommand(Constants.GO_TO_MULTI_PLAYER);
-		multiPlayerButton.addActionListener(this);
-
-		titleScreenPanel.add(logo);
-		titleScreenPanel.add(singlePlayerButton);
-		titleScreenPanel.add(multiPlayerButton);
-	}
-
-	public void setupSinglePlayerPanel() {
-		// Single player setup panel
-		singlePlayerScreenPanel = new JPanel();
-		BoxLayout box = new BoxLayout(singlePlayerScreenPanel, BoxLayout.Y_AXIS);
-		//singlePlayerScreenPanel.setLayout(box);
-
-		JLabel playerNumberLabel = new JLabel("# players.");
-		singlePlayerScreenPanel.add(playerNumberLabel);
-
-		playerSlider = new JSpinner(new SpinnerNumberModel(2, 1, colors.length -1, 1));
-		playerSlider.addChangeListener(this);
-		singlePlayerScreenPanel.add(playerSlider);
-
-		ComputerNameBoxes = new JComboBox[colors.length -1];
-		nameTextFields = new JTextField[colors.length -1];
-		playerSetupPanels = new JPanel[colors.length -1];
-
-		for (int i = 0; i < ComputerNameBoxes.length; ++i) {
-			playerSetupPanels[i] = new JPanel();
-
-			nameTextFields[i] = new JTextField("Player " + (i +1));
-			ComputerNameBoxes[i] = new JComboBox<String>(Constants.validComputerNames);
-			playerSetupPanels[i].add(nameTextFields[i]);
-			playerSetupPanels[i].add(ComputerNameBoxes[i]);
-			singlePlayerScreenPanel.add(playerSetupPanels[i]);
-			if (i > 1) {
-				playerSetupPanels[i].setVisible(false);
-			}
-		}
-
-		JButton titleScreenButton = new JButton("Back");
-		titleScreenButton.setActionCommand(Constants.GO_TO_TITLE);
-		titleScreenButton.addActionListener(this);
-
-		singlePlayerScreenPanel.add(titleScreenButton);
-	}
-
-	public void setupMultiPlayerPanel() {
-		// Multi player setup panel
-		multiPlayerScreenPanel = new JPanel();
-
-		// ip input box
-		JPanel ipPanel = new JPanel();
-		ipPanel.setLayout(new BoxLayout(ipPanel, BoxLayout.X_AXIS));
-		JLabel ipLabel = new JLabel("IP:");
-		ipField = new JTextField(Constants.IP);
-		ipField.setActionCommand(Constants.IP_CHANGE);
-		ipField.addActionListener(this);
-		ipPanel.add(ipLabel);
-		ipPanel.add(ipField);
-
-		// port input box.
-		JPanel portPanel = new JPanel();
-		portPanel.setLayout(new BoxLayout(portPanel, BoxLayout.X_AXIS));
-		JLabel portLabel = new JLabel("PORT:");
-		portField = new JTextField(Integer.toString(Constants.PORT));
-		portField.setActionCommand(Constants.PORT_CHANGE);
-		portField.addActionListener(this);
-		portPanel.add(portLabel);
-		portPanel.add(portField);
-
-		// connect button.
-		connectButton = new JButton("Connect");
-		connectButton.setActionCommand(Constants.CONNECT_TO_SERVER);
-		connectButton.addActionListener(this);
-
-		// connecting label.
-		connectingLabel = new JLabel();
-		changeConnectionStatus(null);
-
-		// button to go back to the title screen.
-		JButton titleScreenButton = new JButton("Back");
-		titleScreenButton.setActionCommand(Constants.GO_TO_TITLE);
-		titleScreenButton.addActionListener(this);
-
-		multiPlayerScreenPanel.add(ipPanel);
-		multiPlayerScreenPanel.add(portPanel);
-		multiPlayerScreenPanel.add(connectButton);
-		multiPlayerScreenPanel.add(connectingLabel);
-		multiPlayerScreenPanel.add(titleScreenButton);
-	}
-
-	private void startSinglePlayer() {
-		int numberOfPlayers = (int) playerSlider.getValue();
-		for (int i = 0; i <= numberOfPlayers; ++i) {
-			String name = nameTextFields[i].getText();
-			if ( name.equals("James")) {
-				computerPlayer = new JamesComputer(clientNetwork, name);
-			} else if (name.equals("Joe")) {
-				computerPlayer = new JoesComputer(clientNetwork, name);
-			}
-			if (computerPlayer == null) {
-				computerName = JOptionPane.showInputDialog(this, "What would you like your name to be?");
-			}
-		}
-	}
-
-	public void startButtonPressed() {
-		changeConnectionStatus(null);
-		clientNetwork = new ClientNetwork(ip, port, false);
-
-		if ( computerName.equals("James")) {
-			computerPlayer = new JamesComputer(clientNetwork, computerName);
-		} else if (computerName.equals("Joe")) {
-			computerPlayer = new JoesComputer(clientNetwork, computerName);
-		}
-		if (computerPlayer == null) {
-			computerName = JOptionPane.showInputDialog(this, "What would you like your name to be?");
-		}
-		clientNetwork.addDisplay(this);
-		clientNetwork.addDisplay( (IDisplay) computerPlayer);
-		clientNetwork.runner.start();
-	}
-
-	public void connectServerButtonPressed() {
-		String ip = ipField.getText();
-		System.out.println("testing: " + ip + " to see if it is valid.");
-		int port;
-		try {
-			port = Integer.parseInt(portField.getText());
-		} catch (NumberFormatException nfe) {
-			return;
-		}
-		if (port <= 65535 && port > 1024 && checkIPv4(ip)) {
-			this.port = port;
-			this.ip = ip;
-			startButtonPressed();
-		}
-
-	}
-
-	public void changeConnectionStatus(String status) {
-		if (status != null) {
-			connectingLabel.setText(status);
-			connectingLabel.setVisible(true);
-			connectButton.setVisible(false);
-		} else {
-			connectingLabel.setText("Connecting...");
-			connectingLabel.setVisible(false);
-			connectButton.setVisible(true);
-		}
-	}
-
-	public void switchCard(String cardId) {
-		switch (cardId) {
-
-		case Constants.TITLE_CARD_NAME:
-			cardLayout.show(mainPanel, Constants.TITLE_CARD_NAME);
-			this.setSize(160, 160);
-			connectingLabel.setVisible(false);
-			break;
-
-		case Constants.BOARD_CARD_NAME:
-			cardLayout.show(mainPanel, Constants.BOARD_CARD_NAME);
-			break;
-
-		case Constants.MULTI_PLAYER_CARD_NAME:
-			cardLayout.show(mainPanel, Constants.MULTI_PLAYER_CARD_NAME);
-			this.setSize(160, 160);
-			break;
-
-		case Constants.SINGLE_PLAYER_CARD_NAME:
-			cardLayout.show(mainPanel, Constants.SINGLE_PLAYER_CARD_NAME);
-			int value = (int) playerSlider.getValue();
-			this.setSize(160, 110 + value * 40);
-			break;
-		}
-
-
-	}
-
-	public static final boolean checkIPv4(final String ip) {
-	    boolean isIPv4;
-	    try {
-	    final InetAddress inet = InetAddress.getByName(ip);
-	    isIPv4 = inet.getHostAddress().equals(ip) && inet instanceof Inet4Address;
-	    } catch (final UnknownHostException e) {
-	    isIPv4 = false;
-	    }
-	    return isIPv4;
-	}
-
-	@Override
-	public void actionPerformed(ActionEvent action) {
-		switch(action.getActionCommand()) {
-
-		case Constants.START_SINGLE_PLAYER:
-			startSinglePlayer();
-			break;
-
-		case Constants.CONNECT_TO_SERVER:
-			connectServerButtonPressed();
-			break;
-
-		case Constants.GO_TO_TITLE: // goes to the title menu.
-			switchCard(Constants.TITLE_CARD_NAME);
-			break;
-
-		case Constants.GO_TO_SINGLE_PLAYER: // goes to the single player setup menu.
-			switchCard(Constants.SINGLE_PLAYER_CARD_NAME);
-			break;
-
-		case Constants.GO_TO_MULTI_PLAYER: // goes to the multi player setup menu.
-			switchCard(Constants.MULTI_PLAYER_CARD_NAME);
-			break;
-
-		default:
-			System.out.println("did not match any registered buttons.");
-		}
 	}
 
 	@Override
 	public void mouseClicked(MouseEvent click) {
-		if(computerPlayer == null)
-		{
+		if(allowInput) {
 			int x = click.getX();
 			int y = click.getY();
-			int X = x / space;
-			int Y = y / space;
+			int X = x / Constants.SPACE;
+			int Y = y / Constants.SPACE;
 
-			if( x % space <= thickness && y % space > thickness){
+			if( x % Constants.SPACE <= Constants.THICKNESS && y % Constants.SPACE > Constants.THICKNESS){
 				clientNetwork.sendLine(Constants.Y_AXIS, X, Y);
-			} else if ( y % space <= thickness && x % space > thickness) {
+			} else if ( y % Constants.SPACE <= Constants.THICKNESS && x % Constants.SPACE > Constants.THICKNESS) {
 				clientNetwork.sendLine(Constants.X_AXIS, X, Y);
 			}
 		}
@@ -403,23 +97,11 @@ public class HumanDisplay extends JFrame implements Runnable, ActionListener, Mo
 	@Override
 	public void mouseReleased(MouseEvent arg0) {}
 
-	@Override
-	public void stateChanged(ChangeEvent event) {
-		JSpinner source = (JSpinner) event.getSource();
-		if (source.equals(playerSlider)) {
-			int value = (int) source.getValue();
-			for (int i = 0; i < playerSetupPanels.length; ++i) {
-				playerSetupPanels[i].setVisible(i < value);
-			}
-			this.setSize(160, 110 + value * 40);
-		}
-	}
 	// server interaction.
 
 	@Override
 	public void connected(int numberOfPlayers, int boardSize) {
 		if (numberOfPlayers > 0 && boardSize > 0) {
-			changeConnectionStatus("Waiting for \nmore players...");
 			System.out.println("connection called");
 			this.boardSize = boardSize;
 			if (scorePanel.getComponentCount() > 2) {
@@ -430,35 +112,28 @@ public class HumanDisplay extends JFrame implements Runnable, ActionListener, Mo
 			scoreLabels = new JLabel[numberOfPlayers];
 			for (int i = 0; i < scoreLabels.length; i++) {
 				scoreLabels[i] = new JLabel(Integer.toString(clientNetwork.getScore(i)));
-				scoreLabels[i].setForeground(colors[i+1]);
+				scoreLabels[i].setForeground(Constants.colors[i+1]);
 				scoreLabels[i].setVisible(true);
 				scorePanel.add(scoreLabels[i]);
 			}
-		} else {
-			changeConnectionStatus(null);
 		}
 	}
 
 	@Override
 	public void spectator(int numberOfPlayers, int boardSize) {
 		JOptionPane.showMessageDialog(this, "You are spectating");
-		computerPlayer = null;
 	}
 
 	@Override
 	public void gameStarting(int myID) {
-		changeConnectionStatus(null);
-		clientNetwork.setName(computerName);
-		// gui
-		cardLayout.show(mainPanel, Constants.BOARD_CARD_NAME);
-		setSize( boardSize * space + thickness * 2, boardSize * space + thickness + space );
+		this.setSize( boardSize * Constants.SPACE + Constants.THICKNESS * 2, boardSize * Constants.SPACE + Constants.THICKNESS + Constants.SPACE);
 		displayPanel.repaint();
 	}
 
 	@Override
 	public void gameOver(int winner) {
 		displayPanel.repaint();
-		if (computerPlayer == null) {
+		if (allowInput) {
 			JOptionPane.showMessageDialog(this, "player " + winner + " won the game!");
 		}
 	}
@@ -479,14 +154,14 @@ public class HumanDisplay extends JFrame implements Runnable, ActionListener, Mo
 			}
 		}
 		JOptionPane.showMessageDialog(this, builder.toString());
-		switchCard(Constants.TITLE_CARD_NAME);
 	}
 
 	@Override
 	public void turn(int player) {
-		turnLabel.setForeground(colors[player]);
+		turnLabel.setForeground(Constants.colors[player]);
 		String playerName = clientNetwork.getPlayerName(player);
 		if (player == clientNetwork.getPlayerNumber()) {
+			Constants.client.switchCard(cardName);
 			turnLabel.setText("Your turn.");
 		}else if (playerName.length() > 0) {
 			turnLabel.setText(playerName + "'s turn.");
@@ -498,6 +173,7 @@ public class HumanDisplay extends JFrame implements Runnable, ActionListener, Mo
 	@Override
 	public void move(int player, int axis, int x, int y) {
 		displayPanel.repaint();
+		Constants.client.mainPanel.repaint();
 	}
 
 	@Override
@@ -505,27 +181,17 @@ public class HumanDisplay extends JFrame implements Runnable, ActionListener, Mo
 		displayPanel.repaint();
 	}
 
-
-
 }
-
 
 // board display.
 
-
 class DrawPanel extends JPanel {
 	private static final long serialVersionUID = 1L;
-	public static int space;
-	public static int thickness;
-	public static int lineLength;
 	HumanDisplay parent;
 
 	public DrawPanel(HumanDisplay parent){
 		super();
 		this.parent = parent;
-		space = parent.space;
-		thickness = parent.thickness;
-		lineLength = space - thickness;
 	}
 
 	@Override
@@ -542,13 +208,12 @@ class DrawPanel extends JPanel {
 			} catch (NullPointerException npe) {
 				System.out.println("scores not ititalised yet.");
 			}
-
 		}
 
 		// Draws dots.
 		for (int x = 0; x < parent.clientNetwork.getBoardSize()+1; x++) {
 			for (int y = 0; y < parent.clientNetwork.getBoardSize()+1; y++) {
-				comp2D.fillRect(x * space, y * space, thickness, thickness);
+				comp2D.fillRect(x * Constants.SPACE, y * Constants.SPACE, Constants.THICKNESS, Constants.THICKNESS);
 			}
 		}
 
@@ -558,22 +223,22 @@ class DrawPanel extends JPanel {
 		// Checks all lines on the X axis then draws the lines on the X axis.
 		for (int x = 0; x < boardLinesCopy[Constants.X_AXIS].length; x++) {
 			for (int y = 0; y < boardLinesCopy[Constants.X_AXIS][x].length; y++) {
-				comp2D.setColor( HumanDisplay.colors[parent.clientNetwork.getOwnerLine(Constants.X_AXIS, x, y)] );
-				comp2D.fillRect(x * space + thickness, y * space, lineLength, thickness);
+				comp2D.setColor( Constants.colors[parent.clientNetwork.getOwnerLine(Constants.X_AXIS, x, y)] );
+				comp2D.fillRect(x * Constants.SPACE + Constants.THICKNESS, y * Constants.SPACE, Constants.LINELENGTH, Constants.THICKNESS);
 			}
 		}
 		// Checks all lines on the Y axis then draws the lines on the Y axis.
 		for (int x = 0; x < boardLinesCopy[Constants.Y_AXIS].length; x++) {
 			for (int y = 0; y < boardLinesCopy[Constants.Y_AXIS][x].length; y++) {
-				comp2D.setColor( HumanDisplay.colors[parent.clientNetwork.getOwnerLine(Constants.Y_AXIS, x, y)] );
-				comp2D.fillRect(x * space, y * space + thickness, thickness, lineLength);
+				comp2D.setColor( Constants.colors[parent.clientNetwork.getOwnerLine(Constants.Y_AXIS, x, y)] );
+				comp2D.fillRect(x * Constants.SPACE, y * Constants.SPACE + Constants.THICKNESS, Constants.THICKNESS, Constants.LINELENGTH);
 			}
 		}
 		// Checks all squares then displays the owner.
 		for (int x = 0; x < boardSquaresCopy.length; x++) {
 			for (int y = 0; y < boardSquaresCopy[x].length; y++) {
-				comp2D.setColor( HumanDisplay.colors[parent.clientNetwork.getOwnerSquare(x, y)] );
-				comp2D.fillRect(x * space + thickness + thickness / 2, y * space + thickness + thickness / 2, thickness * 2, thickness * 2);
+				comp2D.setColor( Constants.colors[parent.clientNetwork.getOwnerSquare(x, y)] );
+				comp2D.fillRect(x * Constants.SPACE + Constants.THICKNESS + Constants.THICKNESS / 2, y * Constants.SPACE + Constants.THICKNESS + Constants.THICKNESS / 2, Constants.THICKNESS * 2, Constants.THICKNESS * 2);
 			}
 		}
 		comp2D.setColor(Color.BLACK);
