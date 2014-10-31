@@ -248,6 +248,7 @@ public class Server implements Runnable{
 
 			String[] commands = line.split(" ");
 
+			System.out.println("command: " + commands[0]);
 			// evals to true if the client is trying to make a move.
 			if (commands[0].matches("line")) {
 				if (gameStarted == true) {

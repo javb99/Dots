@@ -34,6 +34,7 @@ public class HumanDisplay extends JPanel implements Runnable, MouseListener, IDi
 
 	public ClientNetwork clientNetwork;
 	private boolean allowInput;
+	private boolean isFirstPlayer;
 
 	public HumanDisplay(ClientNetwork clientNetwork, String name) {
 		this(clientNetwork, name, true);
@@ -102,7 +103,7 @@ public class HumanDisplay extends JPanel implements Runnable, MouseListener, IDi
 	@Override
 	public void connected(int numberOfPlayers, int boardSize) {
 		if (numberOfPlayers > 0 && boardSize > 0) {
-			System.out.println("connection called");
+			System.out.println("connection called humanDisplay");
 			this.boardSize = boardSize;
 			if (scorePanel.getComponentCount() > 2) {
 				for (JLabel scoreLabel : scoreLabels) {
@@ -111,7 +112,7 @@ public class HumanDisplay extends JPanel implements Runnable, MouseListener, IDi
 			}
 			scoreLabels = new JLabel[numberOfPlayers];
 			for (int i = 0; i < scoreLabels.length; i++) {
-				scoreLabels[i] = new JLabel(Integer.toString(clientNetwork.getScore(i)));
+				scoreLabels[i] = new JLabel(Integer.toString(clientNetwork.getScore(i))); //TODO fix score labels being initialized with zero.
 				scoreLabels[i].setForeground(Constants.colors[i+1]);
 				scoreLabels[i].setVisible(true);
 				scorePanel.add(scoreLabels[i]);
@@ -128,13 +129,14 @@ public class HumanDisplay extends JPanel implements Runnable, MouseListener, IDi
 	public void gameStarting(int myID) {
 		this.setSize( boardSize * Constants.SPACE + Constants.THICKNESS * 2, boardSize * Constants.SPACE + Constants.THICKNESS + Constants.SPACE);
 		displayPanel.repaint();
+		isFirstPlayer = myID < 1; // boolean.
 	}
 
 	@Override
 	public void gameOver(int winner) {
 		displayPanel.repaint();
-		if (allowInput) {
-			JOptionPane.showMessageDialog(this, "player " + winner + " won the game!");
+		if (!allowInput) {
+			JOptionPane.showMessageDialog(displayPanel, "player " + winner + " won the game!");
 		}
 	}
 
@@ -153,7 +155,9 @@ public class HumanDisplay extends JPanel implements Runnable, MouseListener, IDi
 				builder.append("Player " + (player +1) + " won " + scores[player] + " games.\n");
 			}
 		}
-		JOptionPane.showMessageDialog(this, builder.toString());
+		/*if (!allowInput) {
+			JOptionPane.showMessageDialog(displayPanel, builder.toString());
+		}*/
 	}
 
 	@Override

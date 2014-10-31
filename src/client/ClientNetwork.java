@@ -67,7 +67,7 @@ public class ClientNetwork implements Runnable, BoardController {
 				readInput(input);
 			}
 		} catch (IOException ioe) {
-			System.out.println(ioe.getMessage());
+			ioe.printStackTrace();
 		} finally {
 			try {
 				client.close();
@@ -88,17 +88,9 @@ public class ClientNetwork implements Runnable, BoardController {
 
 	public void send(Socket connection, String message) {
 		try {
-			/**byte[] lengthBytes = NetworkHelper.intToByteArray(message.length());
-			System.out.println("length bytes going out: " + message.length());
-			ByteBuffer messageBytes = ByteBuffer.wrap(message.getBytes());
-			connection.getChannel().write(ByteBuffer.wrap(lengthBytes));
-			connection.getChannel().write(messageBytes);**/
-
 			char lengthChar = (char) message.length();
 			String command = lengthChar + message;
 			connection.getOutputStream().write(command.getBytes());
-
-
 		} catch (Exception e) {
 			e.printStackTrace();;
 		}
@@ -126,6 +118,8 @@ public class ClientNetwork implements Runnable, BoardController {
 			}
 			String[] commands = line.split(" ");
 			String[] commandParams = commands[1].split("_");
+
+			System.out.println("command: " + commands[0]);
 
 			switch(commands[0]) {
 			case "connection":
@@ -181,7 +175,6 @@ public class ClientNetwork implements Runnable, BoardController {
 				String[] lineParams;
 				for (String lines : commandParams) {
 					lineParams = lines.split(",");
-					System.out.println("lines: " + lines);
 					axis = Integer.parseInt(lineParams[0]);
 					x = Integer.parseInt(lineParams[1]);
 					y = Integer.parseInt(lineParams[2]);

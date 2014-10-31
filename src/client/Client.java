@@ -1,6 +1,7 @@
 package client;
 
 import java.awt.CardLayout;
+import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.net.Inet4Address;
@@ -34,6 +35,8 @@ public class Client extends JFrame implements ActionListener, ChangeListener, Ru
 	public boolean isMultiPlayer = false;
 	public ArrayList<ClientNetwork> networks;
 	public ArrayList<IDisplay> displays;
+	@SuppressWarnings("unused")
+	private Server server;
 	private Thread runner;
 
 	//  gui related.
@@ -42,6 +45,7 @@ public class Client extends JFrame implements ActionListener, ChangeListener, Ru
 	//   Single player screen related.
 	public JPanel singlePlayerScreenPanel;
 	public JSpinner playerSlider;
+	public JSpinner sizeSlider;
 	public JPanel[] playerSetupPanels;
 	public JComboBox<String>[] computerNameBoxes;
 	public JTextField[] nameTextFields;
@@ -66,16 +70,13 @@ public class Client extends JFrame implements ActionListener, ChangeListener, Ru
 		}
 		if (thicknessIN > 64){
 			JOptionPane.showMessageDialog(null, "comand-line argument(s) invalid", "Error", JOptionPane.ERROR_MESSAGE);
-			System.exit(ERROR);
+			System.exit(1);
 		}
 		Constants.client = new Client();
 	}
 
 	public Client() {
 		super("Dots And Lines Game client");
-
-		networks = new ArrayList<ClientNetwork>();
-		displays = new  ArrayList<IDisplay>();
 
 		if (runner == null) {
 			runner = new Thread(this);
@@ -129,6 +130,12 @@ public class Client extends JFrame implements ActionListener, ChangeListener, Ru
 		// Single player setup panel
 		singlePlayerScreenPanel = new JPanel();
 
+		JLabel sizeLabel = new JLabel("Board Size: ");
+		singlePlayerScreenPanel.add(sizeLabel);
+
+		sizeSlider = new JSpinner(new SpinnerNumberModel(5, 3, 15, 2));
+		singlePlayerScreenPanel.add(sizeSlider);
+
 		JLabel playerNumberLabel = new JLabel("# players.");
 		singlePlayerScreenPanel.add(playerNumberLabel);
 
@@ -152,11 +159,15 @@ public class Client extends JFrame implements ActionListener, ChangeListener, Ru
 				playerSetupPanels[i].setVisible(false);
 			}
 		}
+		JButton startSinglePlayerButton = new JButton("Start");
+		startSinglePlayerButton.setActionCommand(Constants.START_SINGLE_PLAYER);
+		startSinglePlayerButton.addActionListener(this);
 
 		JButton titleScreenButton = new JButton("Back");
 		titleScreenButton.setActionCommand(Constants.GO_TO_TITLE);
 		titleScreenButton.addActionListener(this);
 
+		singlePlayerScreenPanel.add(startSinglePlayerButton);
 		singlePlayerScreenPanel.add(titleScreenButton);
 	}
 
@@ -219,28 +230,62 @@ public class Client extends JFrame implements ActionListener, ChangeListener, Ru
 	}
 
 	private void startSinglePlayer() {
-		new Server(5, 2, 1, Constants.LOCAL_PORT);
 
+		networks = new ArrayList<ClientNetwork>();
+		displays = new  ArrayList<IDisplay>();
+
+		// TODO: be prepared for names that are the same.
 		int numberOfPlayers = (int) playerSlider.getValue();
-		for (int i = 0; i <= numberOfPlayers; ++i) {
-			String name = nameTextFields[i].getText();
-			networks.add(new ClientNetwork(ip, Constants.LOCAL_PORT, false));
+		int boardSize = (int) sizeSlider.getValue();
+		server = new Server(boardSize, numberOfPlayers, 1, Constants.LOCAL_PORT);
+
+		for (int i = 0; i < numberOfPlayers; ++i) { // Add a player each iteration.
+
+			networks.add(new ClientNetwork("localhost", Constants.LOCAL_PORT, false));
 			ClientNetwork network = networks.get(i);
-			if (name.equals("James")) {
+			String name = nameTextFields[i].getText();
+			String computerName = (String) computerNameBoxes[i].getSelectedItem();
+
+			network.setName(name);
+
+			// Connects the AI to the network.
+			if (computerName.equals("James")) {
 				displays.add(new JamesComputer(network, name));
-			} else if (name.equals("Joe")) {
+				System.out.println("Added James as a player.");
+			} else if (computerName.equals("Joe")) {
 				displays.add(new JoesComputer(network, name));
-			} else if (name.equals("Human")) {
+				System.out.println("Added Joe as a player.");
+			} else if (computerName.equals("Human")) {
 				displays.add(new HumanDisplay(network, name, true));
+				System.out.println("Added Human as a player.");
 			} else {
-				System.out.println("error line 228");
+				System.out.println("error line 242: computer name is not valid.");
 			}
+
+			network.addDisplay(this);
+			network.addDisplay(displays.get(displays.size()-1));
+		}
+
+		boolean hasVisualDisplay = false;
+		for (IDisplay display: displays) {
+			if (display instanceof HumanDisplay) {
+				hasVisualDisplay = true;
+				break;
+			}
+		}
+		if (!hasVisualDisplay) {
+			HumanDisplay humanDisplay = new HumanDisplay(networks.get(0), nameTextFields[0].getText(), false);
+			networks.get(0).addDisplay(humanDisplay);
+			System.out.println("Added Human as a Display.");
+		}
+
+		for (ClientNetwork network : networks) {
+			network.runner.start();
 		}
 	}
 
-	public void startMultiPlayer() {
+	public void startMultiPlayer() { // Add HumanDisplay as a display everytime.
 		String ip = ipField.getText();
-		System.out.println("testing: " + ip + " to see if it is valid.");
 		int port;
 		try {
 			port = Integer.parseInt(portField.getText());
@@ -307,7 +352,9 @@ public class Client extends JFrame implements ActionListener, ChangeListener, Ru
 		case Constants.SINGLE_PLAYER_CARD_NAME:
 			cardLayout.show(mainPanel, Constants.SINGLE_PLAYER_CARD_NAME);
 			int value = (int) playerSlider.getValue();
-			this.setSize(160, 110 + value * 40);
+			//this.setSize(160, 110 + value * 40);
+			Dimension size = playerSetupPanels[0].getSize();
+			this.setSize(160, 130 + value * (size.height + 5));
 			break;
 
 		default:
@@ -367,7 +414,7 @@ public class Client extends JFrame implements ActionListener, ChangeListener, Ru
 			for (int i = 0; i < playerSetupPanels.length; ++i) {
 				playerSetupPanels[i].setVisible(i < value);
 			}
-			this.setSize(160, 110 + value * 40);
+			switchCard(Constants.SINGLE_PLAYER_CARD_NAME);
 		}
 	}
 
@@ -391,9 +438,7 @@ public class Client extends JFrame implements ActionListener, ChangeListener, Ru
 	}
 
 	@Override
-	public void spectator(int numberOfPlayers, int boardSize) {
-		// TODO Auto-generated method stub
-	}
+	public void spectator(int numberOfPlayers, int boardSize) {	}
 
 	@Override
 	public void gameOver(int winner) {
@@ -402,6 +447,11 @@ public class Client extends JFrame implements ActionListener, ChangeListener, Ru
 
 	@Override
 	public void sessionOver(int[] scores) {
+		try {
+			Thread.sleep(2000);
+		} catch (InterruptedException e) {
+			System.out.println("InterruptedException when thread sleeping.");
+		}
 		switchCard(Constants.TITLE_CARD_NAME);
 	}
 }
